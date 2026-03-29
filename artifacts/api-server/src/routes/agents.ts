@@ -108,24 +108,41 @@ Return ONLY the JSON object. No preamble, no explanation.`,
       ],
     });
 
-    const text = message.content[0].type === "text" ? message.content[0].text : "{}";
-    const parsed = JSON.parse(text.trim());
+    const raw = message.content[0].type === "text" ? message.content[0].text : "{}";
+    // Strip markdown code fences if Claude wraps its response in them
+    const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+    const parsed = JSON.parse(cleaned);
 
-    res.json({
-      name: parsed.name,
-      discipline: parsed.discipline,
-      domainId: domain_id || null,
-      personaDescription: parsed.persona_description,
-      cognitiveBias: parsed.cognitive_bias,
-      redTeamFocus: parsed.red_team_focus,
-      severityDefault: parsed.severity_default || "HIGH",
-      vectorHuman: parsed.vector_human ?? 50,
-      vectorTechnical: parsed.vector_technical ?? 50,
-      vectorPhysical: parsed.vector_physical ?? 50,
-      vectorFutures: parsed.vector_futures ?? 50,
-      isAiGenerated: true,
-      tags: parsed.tags || [],
-    });
+    // Resolve domainId from domain name if not explicitly provided
+    let resolvedDomainId = domain_id || null;
+    if (!resolvedDomainId && domain) {
+      const { domains } = await import("@workspace/db/schema");
+      const { eq } = await import("drizzle-orm");
+      const [found] = await db.select().from(domains).where(eq(domains.name, domain));
+      resolvedDomainId = found?.id || null;
+    }
+
+    // Save the generated agent to the database
+    const [saved] = await db
+      .insert(agents)
+      .values({
+        name: parsed.name,
+        discipline: parsed.discipline,
+        domainId: resolvedDomainId,
+        personaDescription: parsed.persona_description,
+        cognitiveBias: parsed.cognitive_bias,
+        redTeamFocus: parsed.red_team_focus,
+        severityDefault: parsed.severity_default || "HIGH",
+        vectorHuman: parsed.vector_human ?? 50,
+        vectorTechnical: parsed.vector_technical ?? 50,
+        vectorPhysical: parsed.vector_physical ?? 50,
+        vectorFutures: parsed.vector_futures ?? 50,
+        isAiGenerated: true,
+        tags: parsed.tags || [],
+      })
+      .returning();
+
+    res.status(201).json(saved);
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Failed to generate agent" });
