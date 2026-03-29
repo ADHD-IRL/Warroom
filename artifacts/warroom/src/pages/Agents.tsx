@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useGetAgents, useCreateAgent, useDeleteAgent, useGenerateAgent } from "@workspace/api-client-react";
+import React, { useState, useEffect } from "react";
+import { useGetAgents, useCreateAgent, useDeleteAgent, useGenerateAgent, useGetDomains } from "@workspace/api-client-react";
 import { AgentCard } from "@/components/shared/AgentCard";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Search, Plus, Zap, X, Filter, Loader2 } from "lucide-react";
@@ -14,14 +14,23 @@ export default function Agents() {
   const { mutateAsync: generateAgent } = useGenerateAgent();
   const { toast } = useToast();
 
+  const { data: domains } = useGetDomains();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [mode, setMode] = useState<"MANUAL" | "AI">("AI");
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Form states
   const [expertType, setExpertType] = useState("");
-  const [domain, setDomain] = useState("Defense Acquisition");
+  const [domain, setDomain] = useState("");
   const [focusArea, setFocusArea] = useState("");
+
+  // Default domain to first in list once loaded
+  useEffect(() => {
+    if (domains && domains.length > 0 && !domain) {
+      setDomain(domains[0].name);
+    }
+  }, [domains]);
 
   const handleDelete = async (agent: any) => {
     if (confirm(`Delete agent ${agent.name}?`)) {
@@ -150,9 +159,13 @@ export default function Agents() {
                     <div className="space-y-2">
                       <label className="text-xs font-mono text-muted-foreground uppercase">Domain</label>
                       <select value={domain} onChange={e => setDomain(e.target.value)} className="military-input appearance-none">
-                        <option>Defense Acquisition</option>
-                        <option>Energy & Infrastructure</option>
-                        <option>Geopolitics & Economics</option>
+                        {domains && domains.length > 0 ? (
+                          domains.map(d => (
+                            <option key={d.id} value={d.name}>{d.name}</option>
+                          ))
+                        ) : (
+                          <option value="">No domains available</option>
+                        )}
                       </select>
                     </div>
                     <div className="space-y-2">
