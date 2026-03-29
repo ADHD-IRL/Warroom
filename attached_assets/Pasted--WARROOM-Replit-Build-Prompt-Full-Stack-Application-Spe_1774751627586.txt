@@ -1,0 +1,952 @@
+# WARROOM — Replit Build Prompt
+
+## Full-Stack Application Specification
+
+-----
+
+## OVERVIEW
+
+Build a full-stack web application called **WARROOM** — a multidisciplinary AI-powered red-team and strategic analysis platform. The application allows users to:
+
+1. Build and manage a library of **Agents** (expert archetypes with discipline profiles, biases, and focus areas)
+1. Design **Chains** (multi-step compound threat or scenario sequences that link agents)
+1. Organize everything into **Domains**, **Scenarios**, and **Threats**
+1. Run **Sessions** — structured two-round debates where agents analyze a scenario independently (Round 1) and then debate each other (Round 2)
+1. Generate agent assessments, chain narratives, and synthesis reports using the **Anthropic Claude API**
+
+The aesthetic should be **dark, editorial, and serious** — like a military operations center crossed with a premium intelligence briefing tool. Think dark navy backgrounds, amber/gold accents, sharp typography, and data-dense layouts that feel operational, not playful.
+
+-----
+
+## TECH STACK
+
+- **Frontend**: React + Vite
+- **Styling**: Tailwind CSS with a custom dark theme
+- **State**: Zustand for global state management
+- **Database**: SQLite via Drizzle ORM (Replit DB or file-based)
+- **Backend**: Express.js API server
+- **AI**: Anthropic Claude API (`claude-sonnet-4-20250514`) — use the `ANTHROPIC_API_KEY` environment variable
+- **Icons**: Lucide React
+- **Routing**: React Router v6
+
+-----
+
+## DATABASE SCHEMA
+
+Create the following tables:
+
+### `domains`
+
+```
+id, name, description, color (hex), icon, created_at, updated_at
+```
+
+*Examples: “Defense Acquisition”, “Energy Security”, “Cybersecurity”, “Geopolitics”*
+
+### `agents`
+
+```
+id, name, discipline, domain_id (FK), persona_description, cognitive_bias, 
+red_team_focus, severity_default (CRITICAL/HIGH/MEDIUM/LOW), 
+vector_human (0-100), vector_technical (0-100), vector_physical (0-100), 
+vector_futures (0-100), is_ai_generated (bool), tags (JSON array),
+created_at, updated_at
+```
+
+### `scenarios`
+
+```
+id, name, description, domain_id (FK), context_document (long text),
+status (draft/active/archived), tags (JSON array), created_at, updated_at
+```
+
+### `threats`
+
+```
+id, name, description, domain_id (FK), scenario_id (FK nullable),
+severity (CRITICAL/HIGH/MEDIUM/LOW), category, tags (JSON array),
+created_at, updated_at
+```
+
+### `chains`
+
+```
+id, name, description, domain_id (FK), scenario_id (FK nullable),
+threat_id (FK nullable), is_ai_generated (bool), tags (JSON array),
+created_at, updated_at
+```
+
+### `chain_steps`
+
+```
+id, chain_id (FK), agent_id (FK nullable), step_number, 
+agent_label (text — e.g. "Agent 3 (Supply Chain)"),
+step_text, created_at
+```
+
+### `sessions`
+
+```
+id, name, scenario_id (FK), domain_id (FK), status (pending/round1/round2/complete),
+phase_focus (text — e.g. "Design Phase"), created_at, updated_at
+```
+
+### `session_agents`
+
+```
+id, session_id (FK), agent_id (FK), round1_assessment (long text),
+round1_severity, round2_rebuttal (long text), round2_revised_severity,
+round2_strongest_ally_agent_id (FK nullable), round2_strongest_disagree_agent_id (FK nullable),
+compound_chain_text (long text), generated_at
+```
+
+### `session_findings`
+
+```
+id, session_id (FK), finding_code, severity, finding_text, 
+agent_consensus_count, is_new (bool), created_at
+```
+
+### `session_synthesis`
+
+```
+id (1:1 with session_id), session_id (FK), 
+consensus_findings (JSON), contested_findings (JSON),
+compound_chains (JSON), blind_spots (JSON),
+priority_mitigations (JSON), sharpest_insights (JSON),
+generated_at
+```
+
+-----
+
+## APPLICATION STRUCTURE
+
+### Navigation (Sidebar)
+
+Fixed left sidebar with:
+
+- **WARROOM** logo/wordmark at top (amber on navy)
+- Navigation sections:
+  - 🏠 Dashboard
+  - 🌐 Domains
+  - 🎯 Scenarios
+  - ⚠️ Threats
+  - 🤖 Agents
+  - ⛓ Chains
+  - ⚔️ Sessions
+  - 📊 Reports
+- Status bar at bottom: show API connection status, total agents count, active sessions count
+
+-----
+
+## PAGE SPECIFICATIONS
+
+-----
+
+### PAGE 1: DASHBOARD
+
+**Layout**: Full-width dashboard with stat cards + recent activity
+
+**Stat Cards Row** (4 cards):
+
+- Total Agents | with breakdown by domain
+- Active Sessions | with status indicators
+- Chains in Library | with count by domain
+- Scenarios | with draft/active counts
+
+**Recent Sessions Panel**: Last 5 sessions with status badges, domain, date, quick “Continue” button
+
+**Agent Coverage Matrix Widget**: Mini version of the coverage heatmap — rows = top 8 most-used agents, columns = the 8 lifecycle phases. Uses color intensity.
+
+**Quick Actions**:
+
+- “New Session” (primary CTA — amber button)
+- “Add Agent”
+- “Build Chain”
+- “New Scenario”
+
+-----
+
+### PAGE 2: DOMAINS MANAGER
+
+**Purpose**: Domains are the top-level organizational categories (e.g., “Defense Acquisition”, “Energy Security”, “Cybersecurity”).
+
+**Layout**: Card grid of domains
+
+**Each Domain Card** shows:
+
+- Color-coded left border
+- Domain name + description
+- Agent count, Scenario count, Chain count, Session count
+- Quick-navigate links to each
+
+**Create/Edit Domain Modal**:
+
+- Name
+- Description
+- Color picker (8 preset colors)
+- Icon selector (from subset of Lucide icons)
+
+-----
+
+### PAGE 3: SCENARIOS MANAGER
+
+**Purpose**: Scenarios define the specific situation being analyzed (e.g., “Design Phase — Hardware Component Selection”, “Strait of Hormuz Crisis”).
+
+**Layout**: Left panel = list/filter, Right panel = scenario detail
+
+**Scenario List** (left):
+
+- Filter by domain, status, tags
+- Search by name
+- Sort by date / name / session count
+- Each item shows name, domain badge, status badge, agent count last used
+
+**Scenario Detail** (right):
+
+- Name, domain, description
+- **Context Document** — rich textarea where user writes the program/event description that all agents will read as their briefing. Show character count. Offer “AI Assist” button that expands/improves the context document using Claude.
+- Tags (add/remove inline)
+- Associated threats (link existing threats or create new)
+- Session history — list of sessions run against this scenario
+- “Run New Session” button
+
+**Create Scenario Modal**:
+
+- Name, Domain (select), Description
+- Context Document (large textarea)
+- Status (Draft/Active)
+- Tags
+
+-----
+
+### PAGE 4: THREATS MANAGER
+
+**Purpose**: Threats catalog known adversary tactics, vulnerabilities, or crisis events that can be linked to scenarios and chains.
+
+**Layout**: Table with filters + detail flyout panel
+
+**Threat Table Columns**: Name | Severity | Domain | Scenario | Category | Tags | Actions
+
+**Filter Bar**: Severity (multi-select), Domain, Category, Tags, Search
+
+**Threat Detail Flyout** (slides in from right):
+
+- Full description
+- Linked scenario
+- Linked chains
+- Linked agents who cover this threat
+- Edit / Delete
+
+**Create/Edit Threat**:
+
+- Name, Description
+- Severity (CRITICAL / HIGH / MEDIUM / LOW) — color coded selector
+- Domain, Scenario (optional link)
+- Category (free text or select from existing)
+- Tags
+
+**“AI Generate Threats” button**: Takes the current scenario context and generates 5-10 relevant threats using Claude. User can select which to save.
+
+-----
+
+### PAGE 5: AGENTS MANAGER ⭐ (Most Important Page)
+
+**Purpose**: The Agent Library — build, manage, and organize all expert archetypes.
+
+**Layout**: 3-panel layout
+
+- Left: Filter sidebar
+- Center: Agent card grid
+- Right: Agent detail panel (slides in on selection)
+
+#### LEFT PANEL — Filters
+
+- Search by name
+- Filter by Domain (checkboxes)
+- Filter by Severity Default
+- Filter by Tags
+- Filter by “AI Generated” vs “Manual”
+- Sort: Name / Domain / Most Used / Recently Created
+
+#### CENTER — Agent Card Grid
+
+Each Agent Card:
+
+```
+┌─────────────────────────────────┐
+│ [color bar top]                 │
+│ #ID  Agent Name                 │
+│      Discipline                 │
+│ ───────────────────────────── │
+│ SEVERITY: [badge]               │
+│                                 │
+│ Human    [████████░░] 80%       │
+│ Technical [████░░░░░░] 45%      │
+│ Physical  [██░░░░░░░░] 25%      │
+│ Futures   [██████░░░░] 60%      │
+│                                 │
+│ Bias: [italic text]             │
+│                                 │
+│ Tags: [tag] [tag]               │
+│ [Edit] [Clone] [Add to Session] │
+└─────────────────────────────────┘
+```
+
+Color of top bar and ID number derived from domain color.
+
+#### RIGHT PANEL — Agent Detail
+
+Full agent profile:
+
+- Name, Discipline, Domain
+- **Persona Description** (paragraph — who this expert is, how they think)
+- **Cognitive Bias** (what they systematically miss)
+- **Red-Team Focus** (what they specifically look for)
+- **Vector Bars** (human, technical, physical, futures) — editable sliders
+- **Severity Default** — select dropdown
+- **Tags** — editable inline
+- **Usage Stats**: How many sessions, which scenarios, how many chains
+- **Associated Chains**: List chains this agent appears in
+- **Edit / Clone / Delete** actions
+
+#### CREATE/EDIT AGENT — Full Page Modal or Drawer
+
+**Two modes: Manual or AI-Generated**
+
+**Manual Mode**:
+
+```
+AGENT IDENTITY
+─────────────────────────────────
+Name: [text input]
+Discipline: [text input]
+Domain: [select dropdown]
+Tags: [tag input — add/remove inline]
+
+PROFILE
+─────────────────────────────────
+Persona Description:
+[textarea — 3-4 sentences describing who this expert is,
+ how they think, what they prioritize, what background they have]
+
+Cognitive Bias:
+[textarea — what this agent systematically underweights or misses]
+
+Red-Team Focus:
+[textarea — what specifically this agent is hunting for in any scenario]
+
+VECTOR WEIGHTS
+─────────────────────────────────
+(These determine how the agent's assessment is weighted in the 
+ interactive dashboard sliders)
+
+Human Vector:     [slider 0-100]  [number input]
+Technical Vector: [slider 0-100]  [number input]  
+Physical Vector:  [slider 0-100]  [number input]
+Futures Vector:   [slider 0-100]  [number input]
+
+DEFAULT SEVERITY
+─────────────────────────────────
+[ CRITICAL ] [ HIGH ] [ MEDIUM ] [ LOW ]
+(Select one — this is the agent's typical severity baseline)
+```
+
+**AI-Generate Mode**:
+
+Show a different form:
+
+```
+DESCRIBE YOUR EXPERT
+─────────────────────────────────
+Domain: [select]
+Expert Type: [free text — e.g. "maritime security expert", 
+              "behavioral economist", "former NSA signals analyst"]
+
+Optional hints:
+Prior background: [text]
+Key focus area: [text]
+Known bias toward: [text]
+
+[ GENERATE AGENT ] button (amber, prominent)
+```
+
+When user clicks Generate:
+
+1. Show a loading state with animated dots
+1. Call Claude API with a structured prompt that generates all agent fields
+1. Display the generated agent profile in an editable preview
+1. User can edit any field before saving
+1. Agent is tagged as “AI Generated”
+
+**System prompt for agent generation** (send to Claude):
+
+```
+You are building an expert agent profile for the WARROOM strategic analysis system.
+Generate a detailed agent profile for the following expert type:
+
+Expert type: {expert_type}
+Domain: {domain}
+Prior background hints: {hints}
+
+Return a JSON object with exactly these fields:
+{
+  "name": "short descriptive name (e.g. 'Maritime & Naval Expert')",
+  "discipline": "2-4 word discipline label",
+  "persona_description": "3-4 sentence description of who this expert is, how they think, what they have seen in their career, what they prioritize above all else",
+  "cognitive_bias": "1-2 sentences describing what this expert systematically underweights or misses due to their discipline focus",
+  "red_team_focus": "2-3 sentences on what specifically this agent hunts for when analyzing any scenario or threat",
+  "severity_default": "CRITICAL or HIGH or MEDIUM",
+  "vector_human": integer 0-100,
+  "vector_technical": integer 0-100,
+  "vector_physical": integer 0-100,
+  "vector_futures": integer 0-100,
+  "tags": ["array", "of", "3-5", "relevant", "tags"]
+}
+
+Return ONLY the JSON object. No preamble, no explanation.
+```
+
+-----
+
+### PAGE 6: CHAINS MANAGER ⭐
+
+**Purpose**: Build, manage, and visualize compound attack chains / scenario chains.
+
+**Layout**: Left list + Right visual chain builder
+
+#### LEFT — Chain Library
+
+Filter by: Domain, Scenario, Threat, Tags, “AI Generated”
+
+Each chain list item:
+
+- Chain name
+- Domain badge
+- Number of steps
+- Agents involved (avatar stack)
+- Tags
+
+#### RIGHT — Chain Builder
+
+**Two modes: Manual Builder or AI Generator**
+
+**MANUAL BUILDER**:
+
+Top section:
+
+```
+Chain Name: [input]
+Domain: [select]
+Scenario: [select — optional]
+Threat: [select — optional]  
+Tags: [tag input]
+Description: [textarea]
+```
+
+Step builder (the main feature):
+
+Each step card:
+
+```
+┌─────────────────────────────────────────┐
+│  STEP [N]                    [↑] [↓] [×] │
+│                                          │
+│  Agent: [select from agent library      ▼│
+│          OR type custom label            ]│
+│                                          │
+│  Step Text:                              │
+│  [textarea — describe what happens      ]│
+│  [in this step of the chain             ]│
+│                                          │
+│  Step Color: [color dot selector]        │
+└─────────────────────────────────────────┘
+```
+
+Controls:
+
+- “Add Step” button at bottom
+- Drag-and-drop reordering (use react-beautiful-dnd or similar)
+- Each step can have an agent selected from the library OR a free-text agent label
+- Steps connect visually with arrows between them
+
+**Visual chain preview** (right side of builder, updates live):
+
+```
+[Step 1] → [Step 2] → [Step 3] → ...
+```
+
+Each step shown as a node with agent name and truncated step text.
+
+**AI CHAIN GENERATOR**:
+
+```
+GENERATE A CHAIN FROM SCENARIO
+─────────────────────────────────
+Scenario: [select — or paste context]
+Available Agents: [multi-select from library]
+Chain Type: [dropdown]
+  - Multi-discipline attack chain
+  - Escalation scenario
+  - Supply chain compromise path
+  - Influence & perception chain
+  - Economic cascade chain
+  - Custom: [text]
+
+Number of Steps: [3-10 slider]
+Focus Area: [optional text — e.g. "design phase", "LNG market", etc.]
+
+[ GENERATE CHAIN ] button
+```
+
+When user clicks Generate:
+
+1. Call Claude with all selected agents’ profiles + scenario context + chain type
+1. Claude returns a structured chain with named steps and agent attributions
+1. Show preview in the visual chain builder with all steps pre-populated
+1. User can edit any step, reorder, delete, or add steps before saving
+
+**System prompt for chain generation**:
+
+```
+You are generating a compound scenario chain for the WARROOM strategic analysis system.
+
+A chain is a multi-step sequence showing how a scenario, threat, or adversary operation unfolds across multiple disciplines. Each step is attributed to one or more expert disciplines and describes what happens in that stage.
+
+Scenario Context:
+{scenario_context}
+
+Available Agents and their disciplines:
+{agent_list_with_disciplines}
+
+Chain Type: {chain_type}
+Focus Area: {focus_area}
+Number of Steps: {num_steps}
+
+Generate a compound chain with {num_steps} steps. Return a JSON object:
+{
+  "name": "Evocative chain name in quotes — e.g. 'The Long Game' or 'Price Cascade'",
+  "description": "2-3 sentence summary of what this chain represents",
+  "steps": [
+    {
+      "step_number": 1,
+      "agent_label": "Agent name or discipline label",
+      "step_text": "Clear description of what happens in this step and why it matters"
+    }
+  ]
+}
+
+Make the chain operationally coherent — each step should flow logically from the previous. The chain should represent something that no single discipline would identify alone. Return ONLY the JSON.
+```
+
+-----
+
+### PAGE 7: SESSIONS ⭐ (Core Feature)
+
+**Purpose**: Run a WARROOM session — the structured two-round analysis event.
+
+#### SESSION LIST VIEW
+
+Cards showing: Session name, Domain, Scenario, Status badge, Agent count, Date, Actions
+
+Status badges: PENDING | ROUND 1 | ROUND 2 | COMPLETE — each with distinct color
+
+#### CREATE SESSION
+
+```
+SESSION SETUP
+─────────────────────────────────
+Session Name: [auto-generated or user-specified]
+Domain: [select]
+Scenario: [select — pulls in context document]
+Phase Focus: [text — e.g. "Design Phase", "Strait Closure Week 4"]
+
+SELECT AGENTS (drag from library into session)
+─────────────────────────────────
+[Agent Library — left panel, filterable]
+     ↓ drag or click +
+[Session Agents — right panel — ordered list]
+
+Min: 3 agents | Recommended: 8-13 agents
+
+Each selected agent shows:
+- Name, discipline, domain color badge
+- Reorder with drag handles
+- Remove button
+
+REVIEW
+─────────────────────────────────
+Context Document: [read-only preview — from scenario]
+[Edit Context] button to override for this session
+
+[ START SESSION ] amber button
+```
+
+#### SESSION WORKSPACE
+
+Full-page workspace that shows the session in progress.
+
+**Top bar**: Session name | Scenario | Phase Focus | Status badge | “Generate Round 1 / Round 2 / Synthesis” buttons
+
+**Layout**: Tabbed interface:
+
+-----
+
+**TAB: ROUND 1 — Independent Assessments**
+
+Agent cards in a 2-3 column grid. Each card:
+
+```
+┌─────────────────────────────────────────────┐
+│ [Agent Color Bar]                            │
+│ Agent N: [Name]              [CRITICAL]      │
+│ Discipline                                   │
+│ ─────────────────────────────────────────── │
+│ [Expand/Collapse]                            │
+│                                              │
+│ [Generated assessment text — collapsible]   │
+│                                              │
+│ Status: ○ Pending | ⟳ Generating | ✓ Done   │
+│                                              │
+│ [Generate] [Edit] [Regenerate]               │
+└─────────────────────────────────────────────┘
+```
+
+**Generate All (Round 1)** button at top: Runs all agents in parallel (sequential API calls with progress shown). Each agent card animates as it generates. A progress bar shows X/N complete.
+
+When generating, pass to Claude:
+
+```
+You are [agent name], [persona description].
+Your cognitive bias: [cognitive_bias]
+Your red-team focus: [red_team_focus]
+
+SCENARIO CONTEXT:
+{context_document}
+
+PHASE/FOCUS: {phase_focus}
+
+Write a Round 1 independent threat/scenario assessment (600-900 words) covering:
+1. Opening position — your primary framing of the situation from your discipline
+2. Threat/Finding 1 — with specific mechanism, what defenders/analysts are missing, and severity (CRITICAL/HIGH/MEDIUM) with rationale
+3. Threat/Finding 2 — same structure
+4. Threat/Finding 3 — same structure
+5. Invalidating assumption — one assumption that if wrong would change your entire assessment
+6. Key finding — one-sentence bottom line
+
+Write in first person as the expert. Be specific, opinionated, and willing to disagree with conventional wisdom.
+```
+
+-----
+
+**TAB: ROUND 2 — Cross-Discipline Debate**
+
+Same card layout, but now each card shows the rebuttal.
+
+The “Generate All (Round 2)” button sends EVERY agent their own assessment PLUS all other agents’ Round 1 assessments.
+
+Prompt:
+
+```
+You are [agent name], [persona description].
+Your cognitive bias: [cognitive_bias]
+
+You have just read all Round 1 assessments from the other experts. Here they are:
+
+[ROUND 1 ASSESSMENTS FROM ALL OTHER AGENTS — formatted with agent name headers]
+
+Now write your Round 2 rebuttal (400-600 words) covering:
+1. Strongest alliance — which other agent's findings combine most powerfully with yours, and build the compound chain that emerges (name the agent explicitly)
+2. Strongest disagreement — which agent you disagree with most and exactly why (name them, reference their specific argument)
+3. Whether you've revised your severity rating and why
+4. ONE compound chain narrative — a multi-step sequence threading your discipline with at least one other agent's discipline
+
+Be direct. Name names. Quote other agents' arguments when disagreeing. Change your position if another agent persuaded you.
+```
+
+-----
+
+**TAB: SYNTHESIS**
+
+Auto-generated synthesis after Round 2 is complete.
+
+Shows structured output:
+
+- **Consensus Findings** (sorted by severity)
+- **Contested Findings** (agent A vs agent B format)
+- **Compound Chains** (extracted from Round 2 rebuttals, with agent attributions)
+- **Blind Spots** (areas no agent covered well)
+- **Priority Mitigations** (numbered list)
+- **Sharpest Insights** (5 best quotes from agents, highlighted in navy boxes)
+
+Each section has an “Edit” button to manually override/supplement.
+
+**Save to Chain Library** button on any compound chain found in synthesis.
+
+**Export** button — generates markdown report.
+
+-----
+
+**TAB: AGENTS MAP**
+
+Visual representation of the session:
+
+- Agent cards arranged in a circle or grid
+- Lines drawn between agents who cited each other in Round 2 (strongest ally / strongest disagreement — green vs red lines)
+- Chain nodes floating in the space showing which chains connect which agents
+- Clicking an agent shows their assessments
+- Clicking a chain shows its steps
+
+-----
+
+**TAB: SETTINGS**
+
+- Edit session name, phase focus
+- Add/remove agents (if session not yet complete)
+- Regenerate individual assessments
+- Reset to Round 1
+
+-----
+
+### PAGE 8: REPORTS
+
+**Purpose**: Export, print, and share session outputs.
+
+**Report Builder**:
+
+- Select a session
+- Choose sections to include:
+  - [ ] Cover page
+  - [ ] Situation brief
+  - [ ] Agent roster
+  - [ ] Consensus findings
+  - [ ] Compound chains
+  - [ ] Contested findings
+  - [ ] Priority actions
+  - [ ] Agent assessments (Round 1)
+  - [ ] Cross-discipline rebuttals (Round 2)
+  - [ ] Synthesis
+- Export as: Markdown | PDF (browser print) | JSON (for import)
+
+**Saved Reports** list with download links.
+
+-----
+
+## GLOBAL UI COMPONENTS
+
+### Color System
+
+```css
+--bg-primary: #0D1B2A        /* deepest navy */
+--bg-secondary: #121E2D      /* slightly lighter */
+--bg-card: #1A2844           /* card backgrounds */
+--bg-hover: #1F3060          /* hover state */
+--border: #2A3F5A            /* borders */
+--text-primary: #E8EDF5      /* main text */
+--text-secondary: #8A9BB5    /* secondary text */
+--text-muted: #546E7A        /* muted text */
+--accent-amber: #F0A500      /* primary accent */
+--accent-amber-dim: #8B6914  /* dimmed amber */
+--critical: #C0392B          /* CRITICAL severity */
+--high: #D68910              /* HIGH severity */  
+--medium: #2E86AB            /* MEDIUM severity */
+--low: #27AE60               /* LOW severity */
+--steel: #2E75B6             /* informational blue */
+--new: #7B2D8B               /* new/featured purple */
+```
+
+### Severity Badge Component
+
+```
+CRITICAL → red background, white text
+HIGH     → amber background, dark text
+MEDIUM   → blue background, white text
+LOW      → green background, white text
+```
+
+### Agent Vector Bars
+
+Thin horizontal progress bars showing 0-100 intensity for each vector type. Human = red, Technical = blue, Physical = teal, Futures = purple.
+
+### Loading States
+
+When Claude API is generating content, show:
+
+- Animated pulsing dots on the card
+- “Generating…” text with rotating icon
+- Progress counter for batch operations (e.g., “Generating 4/10 agents…”)
+
+### Toast Notifications
+
+- Success: green left border
+- Error: red left border
+- Info: blue left border
+- Warning: amber left border
+
+-----
+
+## API ENDPOINTS (Express backend)
+
+```
+# Domains
+GET    /api/domains
+POST   /api/domains
+PUT    /api/domains/:id
+DELETE /api/domains/:id
+
+# Scenarios  
+GET    /api/scenarios
+GET    /api/scenarios/:id
+POST   /api/scenarios
+PUT    /api/scenarios/:id
+DELETE /api/scenarios/:id
+POST   /api/scenarios/:id/ai-assist   ← Claude improves context doc
+
+# Threats
+GET    /api/threats
+POST   /api/threats
+PUT    /api/threats/:id
+DELETE /api/threats/:id
+POST   /api/threats/generate          ← Claude generates threats from scenario
+
+# Agents
+GET    /api/agents
+GET    /api/agents/:id
+POST   /api/agents
+PUT    /api/agents/:id
+DELETE /api/agents/:id
+POST   /api/agents/generate           ← Claude generates agent profile
+
+# Chains
+GET    /api/chains
+GET    /api/chains/:id
+POST   /api/chains
+PUT    /api/chains/:id
+DELETE /api/chains/:id
+POST   /api/chains/generate           ← Claude generates full chain
+
+# Sessions
+GET    /api/sessions
+GET    /api/sessions/:id
+POST   /api/sessions
+PUT    /api/sessions/:id
+DELETE /api/sessions/:id
+POST   /api/sessions/:id/generate-round1          ← All Round 1 assessments
+POST   /api/sessions/:id/generate-round1/:agentId ← Single agent Round 1
+POST   /api/sessions/:id/generate-round2          ← All Round 2 rebuttals
+POST   /api/sessions/:id/generate-round2/:agentId ← Single agent Round 2
+POST   /api/sessions/:id/generate-synthesis       ← Full synthesis
+POST   /api/sessions/:id/save-chain               ← Save chain from synthesis to library
+
+# Reports
+GET    /api/reports
+POST   /api/reports/generate
+GET    /api/reports/:id
+```
+
+-----
+
+## SEED DATA
+
+Pre-populate the database with:
+
+**3 Domains**:
+
+1. Defense Acquisition (navy blue)
+1. Energy & Infrastructure (amber)
+1. Geopolitics & Economics (teal)
+
+**8 Agents** (Defense Acquisition domain):
+
+1. CI / HUMINT Officer — Counterintelligence
+1. Offensive Cyber Operator — Cyber / CNO
+1. Supply Chain Analyst — HW/SW Supply Chain
+1. Insider Threat Investigator — Personnel Security
+1. Physical Security / TSCM — Physical Security
+1. IO / Influence Operations — Information Operations
+1. Futures / Foresight Analyst — Strategic Foresight
+1. Behavioral Science SME — Cognitive Psychology
+
+**5 Agents** (Energy & Infrastructure domain):
+
+1. Energy Markets Analyst — Supply / Price Dynamics
+1. Geopolitical Strategist — Regime Calculus / Negotiation
+1. Maritime & Naval Expert — Shipping / Mine Clearance
+1. LNG / Gas Specialist — Natural Gas / Asia Power
+1. Macro Economist — Stagflation / Central Banks
+
+**1 Scenario** (Defense Acquisition):
+
+- Name: “Design Phase — Hardware Component Selection”
+- Context: Full description of a defense system in design phase
+
+**1 Scenario** (Energy & Infrastructure):
+
+- Name: “Strait of Hormuz Crisis — Week 4”
+- Context: Iran war supply disruption briefing
+
+**2 Chains** pre-built with steps.
+
+-----
+
+## INTERACTION PATTERNS
+
+### Drag-and-Drop Agent Selection
+
+In Session creation, agent cards in the library are draggable into the session panel. Visual drop zone highlights when dragging. Clicking an agent also adds it via a “+” button.
+
+### Inline Editing
+
+All text fields support click-to-edit inline — no separate “edit mode” required for small fields. Large fields (persona, context documents) open in a modal editor.
+
+### Keyboard Shortcuts
+
+- `Cmd+N` — New item (context-aware: new agent on agents page, new chain on chains page)
+- `Cmd+S` — Save current item
+- `Escape` — Close modal/flyout
+
+### Optimistic Updates
+
+All create/update operations update UI immediately, then sync to backend. Show error toast and revert on failure.
+
+### Collapsible Sections
+
+Long assessment texts in sessions are collapsed by default (showing first 3 lines + “Show more”). Click to expand.
+
+-----
+
+## IMPORTANT IMPLEMENTATION NOTES
+
+1. **API Key**: Store `ANTHROPIC_API_KEY` as a Replit Secret. Never expose it to the frontend. All Claude API calls go through the Express backend.
+1. **Model**: Always use `claude-sonnet-4-20250514` for all generation tasks.
+1. **Streaming**: For long agent assessments (Round 1 / Round 2), use streaming responses so users see text appearing as it generates rather than waiting for the full response. Pipe the stream through a Server-Sent Events endpoint.
+1. **Rate Limiting**: When generating all agents in a session simultaneously, use a queue with a small delay between API calls (200ms) to avoid overwhelming the API.
+1. **Error Handling**: If an agent generation fails, show a “Retry” button on that specific agent card. Don’t fail the entire batch.
+1. **Persistence**: Auto-save agent assessments to the database as they complete. If the user navigates away and returns, completed assessments are preserved.
+1. **Mobile**: The application is primarily designed for desktop (1200px+). A basic mobile view should collapse the sidebar into a hamburger menu and stack panels vertically, but deep functionality is desktop-only.
+1. **Empty States**: Every list/grid page should have a meaningful empty state with an illustration (SVG inline), a description of what goes here, and a primary action button.
+1. **Confirmation Dialogs**: Destructive actions (delete agent, delete chain, reset session) require a confirmation modal with the item name typed.
+1. **Clone Functionality**: Agents and Chains can be cloned — creates a copy with “ (Copy)” appended to the name and “is_ai_generated” preserved from original.
+
+-----
+
+## SAMPLE EMPTY STATE MESSAGES
+
+- Agents page (empty): “Your agent library is empty. Agents are the expert archetypes that power every WARROOM session. Build them manually or let AI generate a profile from a description.”
+- Chains page (empty): “No chains yet. Chains are compound multi-step sequences that show how threats and scenarios unfold across disciplines. Build manually or generate from a scenario.”
+- Sessions page (empty): “No sessions yet. A session runs your selected agents through a structured two-round analysis of any scenario. Start by selecting a scenario and a team of agents.”
+
+-----
+
+## PHASE 2 FEATURES (implement after core is working)
+
+- **Templates**: Save a session configuration (agent set + scenario type) as a reusable template
+- **Chain Library Tagging & Search**: Full-text search across chain step text
+- **Agent Performance Tracking**: Show which agents produced the most-cited findings across sessions
+- **Scenario Comparison**: Run the same agent set against two different scenarios and diff the findings
+- **Export to WARROOM Dashboard**: Export session data in the format that matches the interactive HTML dashboard format from previous sessions
+- **Multi-user**: Basic auth with user accounts and shared agent libraries
+
+-----
+
+*Build this as a production-quality application. The aesthetic and UX quality matters — this tool is used by serious analysts and the interface should feel like a professional intelligence platform, not a generic CRUD app.*

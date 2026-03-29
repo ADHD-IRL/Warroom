@@ -1,0 +1,25 @@
+packages:
+  "@hello-pangea/dnd": "Drag and drop for chain builder and session agents"
+  "recharts": "Charts for dashboard analytics"
+  "react-markdown": "Render markdown for AI generated content"
+  "date-fns": "Human-readable date formatting"
+  "framer-motion": "Animations and page transitions"
+
+images:
+  - path: "artifacts/warroom/public/images/hero-bg.png"
+    description: "Abstract deep navy and amber geometric topography map, military operations center aesthetic, dark mode, glowing accents"
+    aspect_ratio: "16:9"
+  - path: "artifacts/warroom/public/images/empty-agents.png"
+    description: "Minimalist wireframe avatar icons interconnected by thin glowing lines on dark navy background, strategic military"
+    aspect_ratio: "1:1"
+  - path: "artifacts/warroom/public/images/empty-chains.png"
+    description: "Minimalist flowchart diagram with glowing amber nodes on deep blue background, cyber military aesthetic"
+    aspect_ratio: "1:1"
+  - path: "artifacts/warroom/public/images/logo-mark.png"
+    description: "Minimalist sharp geometric emblem in glowing amber on transparent background, military cyber command style"
+    aspect_ratio: "1:1"
+
+notes:
+  - Using generated hooks from @workspace/api-client-react
+  - Implementing custom useSSE hook for streaming endpoints
+  - Full dark mode editorial intelligence aesthetic

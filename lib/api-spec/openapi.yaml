@@ -1,22 +1,35 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: WARROOM API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: domains
+    description: Domain management
+  - name: scenarios
+    description: Scenario management
+  - name: threats
+    description: Threat management
+  - name: agents
+    description: Agent management
+  - name: chains
+    description: Chain management
+  - name: sessions
+    description: Session management
+  - name: reports
+    description: Report management
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +37,900 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /domains:
+    get:
+      operationId: getDomains
+      tags: [domains]
+      summary: List all domains
+      responses:
+        "200":
+          description: List of domains
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Domain"
+    post:
+      operationId: createDomain
+      tags: [domains]
+      summary: Create a domain
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDomainBody"
+      responses:
+        "201":
+          description: Created domain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Domain"
+
+  /domains/{id}:
+    get:
+      operationId: getDomain
+      tags: [domains]
+      summary: Get a domain by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Domain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Domain"
+    put:
+      operationId: updateDomain
+      tags: [domains]
+      summary: Update a domain
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDomainBody"
+      responses:
+        "200":
+          description: Updated domain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Domain"
+    delete:
+      operationId: deleteDomain
+      tags: [domains]
+      summary: Delete a domain
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /scenarios:
+    get:
+      operationId: getScenarios
+      tags: [scenarios]
+      summary: List all scenarios
+      parameters:
+        - name: domainId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of scenarios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Scenario"
+    post:
+      operationId: createScenario
+      tags: [scenarios]
+      summary: Create a scenario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScenarioBody"
+      responses:
+        "201":
+          description: Created scenario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scenario"
+
+  /scenarios/{id}:
+    get:
+      operationId: getScenario
+      tags: [scenarios]
+      summary: Get a scenario by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Scenario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scenario"
+    put:
+      operationId: updateScenario
+      tags: [scenarios]
+      summary: Update a scenario
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScenarioBody"
+      responses:
+        "200":
+          description: Updated scenario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scenario"
+    delete:
+      operationId: deleteScenario
+      tags: [scenarios]
+      summary: Delete a scenario
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /scenarios/{id}/ai-assist:
+    post:
+      operationId: aiAssistScenario
+      tags: [scenarios]
+      summary: AI-assist improve scenario context document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Improved context
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  context_document:
+                    type: string
+                required: [context_document]
+
+  /threats:
+    get:
+      operationId: getThreats
+      tags: [threats]
+      summary: List all threats
+      parameters:
+        - name: domainId
+          in: query
+          schema:
+            type: integer
+        - name: severity
+          in: query
+          schema:
+            type: string
+        - name: scenarioId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of threats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Threat"
+    post:
+      operationId: createThreat
+      tags: [threats]
+      summary: Create a threat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateThreatBody"
+      responses:
+        "201":
+          description: Created threat
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Threat"
+
+  /threats/generate:
+    post:
+      operationId: generateThreats
+      tags: [threats]
+      summary: AI-generate threats from scenario context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scenarioId:
+                  type: integer
+                context:
+                  type: string
+              required: [context]
+      responses:
+        "200":
+          description: Generated threats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Threat"
+
+  /threats/{id}:
+    put:
+      operationId: updateThreat
+      tags: [threats]
+      summary: Update a threat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateThreatBody"
+      responses:
+        "200":
+          description: Updated threat
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Threat"
+    delete:
+      operationId: deleteThreat
+      tags: [threats]
+      summary: Delete a threat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /agents:
+    get:
+      operationId: getAgents
+      tags: [agents]
+      summary: List all agents
+      parameters:
+        - name: domainId
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of agents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Agent"
+    post:
+      operationId: createAgent
+      tags: [agents]
+      summary: Create an agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAgentBody"
+      responses:
+        "201":
+          description: Created agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+
+  /agents/generate:
+    post:
+      operationId: generateAgent
+      tags: [agents]
+      summary: AI-generate an agent profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expert_type:
+                  type: string
+                domain:
+                  type: string
+                domain_id:
+                  type: integer
+                prior_background:
+                  type: string
+                key_focus_area:
+                  type: string
+                known_bias:
+                  type: string
+              required: [expert_type, domain]
+      responses:
+        "200":
+          description: Generated agent profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+
+  /agents/{id}:
+    get:
+      operationId: getAgent
+      tags: [agents]
+      summary: Get an agent by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+    put:
+      operationId: updateAgent
+      tags: [agents]
+      summary: Update an agent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAgentBody"
+      responses:
+        "200":
+          description: Updated agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+    delete:
+      operationId: deleteAgent
+      tags: [agents]
+      summary: Delete an agent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /chains:
+    get:
+      operationId: getChains
+      tags: [chains]
+      summary: List all chains
+      parameters:
+        - name: domainId
+          in: query
+          schema:
+            type: integer
+        - name: scenarioId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of chains
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Chain"
+    post:
+      operationId: createChain
+      tags: [chains]
+      summary: Create a chain
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChainBody"
+      responses:
+        "201":
+          description: Created chain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chain"
+
+  /chains/generate:
+    post:
+      operationId: generateChain
+      tags: [chains]
+      summary: AI-generate a chain
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scenarioId:
+                  type: integer
+                scenarioContext:
+                  type: string
+                agentIds:
+                  type: array
+                  items:
+                    type: integer
+                chainType:
+                  type: string
+                numSteps:
+                  type: integer
+                focusArea:
+                  type: string
+                domainId:
+                  type: integer
+              required: [chainType, numSteps]
+      responses:
+        "200":
+          description: Generated chain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chain"
+
+  /chains/{id}:
+    get:
+      operationId: getChain
+      tags: [chains]
+      summary: Get a chain by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Chain with steps
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chain"
+    put:
+      operationId: updateChain
+      tags: [chains]
+      summary: Update a chain
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChainBody"
+      responses:
+        "200":
+          description: Updated chain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chain"
+    delete:
+      operationId: deleteChain
+      tags: [chains]
+      summary: Delete a chain
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /sessions:
+    get:
+      operationId: getSessions
+      tags: [sessions]
+      summary: List all sessions
+      responses:
+        "200":
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Session"
+    post:
+      operationId: createSession
+      tags: [sessions]
+      summary: Create a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionBody"
+      responses:
+        "201":
+          description: Created session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+
+  /sessions/{id}:
+    get:
+      operationId: getSession
+      tags: [sessions]
+      summary: Get a session with all data
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Session with agents, findings, synthesis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionDetail"
+    put:
+      operationId: updateSession
+      tags: [sessions]
+      summary: Update a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSessionBody"
+      responses:
+        "200":
+          description: Updated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+    delete:
+      operationId: deleteSession
+      tags: [sessions]
+      summary: Delete a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /sessions/{id}/generate-round1:
+    post:
+      operationId: generateRound1All
+      tags: [sessions]
+      summary: Generate Round 1 for all agents (SSE streaming)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: SSE stream of generation progress
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /sessions/{id}/generate-round1/{agentId}:
+    post:
+      operationId: generateRound1Agent
+      tags: [sessions]
+      summary: Generate Round 1 for a single agent (SSE streaming)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /sessions/{id}/generate-round2:
+    post:
+      operationId: generateRound2All
+      tags: [sessions]
+      summary: Generate Round 2 for all agents (SSE streaming)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /sessions/{id}/generate-round2/{agentId}:
+    post:
+      operationId: generateRound2Agent
+      tags: [sessions]
+      summary: Generate Round 2 for a single agent (SSE streaming)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /sessions/{id}/generate-synthesis:
+    post:
+      operationId: generateSynthesis
+      tags: [sessions]
+      summary: Generate synthesis report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Synthesis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionSynthesis"
+
+  /sessions/{id}/save-chain:
+    post:
+      operationId: saveChainFromSynthesis
+      tags: [sessions]
+      summary: Save a chain from synthesis to chain library
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                chainText:
+                  type: string
+                chainName:
+                  type: string
+                agentIds:
+                  type: array
+                  items:
+                    type: integer
+              required: [chainText, chainName]
+      responses:
+        "201":
+          description: Saved chain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chain"
+
+  /reports:
+    get:
+      operationId: getReports
+      tags: [reports]
+      summary: List all reports
+      responses:
+        "200":
+          description: List of reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Report"
+    post:
+      operationId: generateReport
+      tags: [reports]
+      summary: Generate a report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReportBody"
+      responses:
+        "201":
+          description: Generated report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+
+  /reports/{id}:
+    get:
+      operationId: getReport
+      tags: [reports]
+      summary: Get a report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [health]
+      summary: Get dashboard stats
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +938,550 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required: [success]
+
+    Domain:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        color:
+          type: string
+        icon:
+          type: string
+        agentCount:
+          type: integer
+        scenarioCount:
+          type: integer
+        chainCount:
+          type: integer
+        sessionCount:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, name, color]
+
+    CreateDomainBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        color:
+          type: string
+        icon:
+          type: string
+      required: [name, color]
+
+    Scenario:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        domainId:
+          type: integer
+        contextDocument:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, archived]
+        tags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, name, status]
+
+    CreateScenarioBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        domainId:
+          type: integer
+        contextDocument:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, archived]
+        tags:
+          type: array
+          items:
+            type: string
+      required: [name]
+
+    Threat:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        domainId:
+          type: integer
+        scenarioId:
+          type: integer
+        severity:
+          type: string
+          enum: [CRITICAL, HIGH, MEDIUM, LOW]
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, name, severity]
+
+    CreateThreatBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        domainId:
+          type: integer
+        scenarioId:
+          type: integer
+        severity:
+          type: string
+          enum: [CRITICAL, HIGH, MEDIUM, LOW]
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+      required: [name, severity]
+
+    Agent:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        discipline:
+          type: string
+        domainId:
+          type: integer
+        personaDescription:
+          type: string
+        cognitiveBias:
+          type: string
+        redTeamFocus:
+          type: string
+        severityDefault:
+          type: string
+          enum: [CRITICAL, HIGH, MEDIUM, LOW]
+        vectorHuman:
+          type: integer
+        vectorTechnical:
+          type: integer
+        vectorPhysical:
+          type: integer
+        vectorFutures:
+          type: integer
+        isAiGenerated:
+          type: boolean
+        tags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, name, discipline, severityDefault]
+
+    CreateAgentBody:
+      type: object
+      properties:
+        name:
+          type: string
+        discipline:
+          type: string
+        domainId:
+          type: integer
+        personaDescription:
+          type: string
+        cognitiveBias:
+          type: string
+        redTeamFocus:
+          type: string
+        severityDefault:
+          type: string
+          enum: [CRITICAL, HIGH, MEDIUM, LOW]
+        vectorHuman:
+          type: integer
+        vectorTechnical:
+          type: integer
+        vectorPhysical:
+          type: integer
+        vectorFutures:
+          type: integer
+        isAiGenerated:
+          type: boolean
+        tags:
+          type: array
+          items:
+            type: string
+      required: [name, discipline, severityDefault]
+
+    ChainStep:
+      type: object
+      properties:
+        id:
+          type: integer
+        chainId:
+          type: integer
+        agentId:
+          type: integer
+        stepNumber:
+          type: integer
+        agentLabel:
+          type: string
+        stepText:
+          type: string
+        createdAt:
+          type: string
+      required: [id, chainId, stepNumber, stepText]
+
+    Chain:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        domainId:
+          type: integer
+        scenarioId:
+          type: integer
+        threatId:
+          type: integer
+        isAiGenerated:
+          type: boolean
+        tags:
+          type: array
+          items:
+            type: string
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChainStep"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, name]
+
+    CreateChainBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        domainId:
+          type: integer
+        scenarioId:
+          type: integer
+        threatId:
+          type: integer
+        isAiGenerated:
+          type: boolean
+        tags:
+          type: array
+          items:
+            type: string
+        steps:
+          type: array
+          items:
+            type: object
+            properties:
+              agentId:
+                type: integer
+              stepNumber:
+                type: integer
+              agentLabel:
+                type: string
+              stepText:
+                type: string
+            required: [stepNumber, stepText]
+      required: [name]
+
+    SessionAgent:
+      type: object
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        agentId:
+          type: integer
+        agent:
+          $ref: "#/components/schemas/Agent"
+        round1Assessment:
+          type: string
+        round1Severity:
+          type: string
+        round2Rebuttal:
+          type: string
+        round2RevisedSeverity:
+          type: string
+        round2StrongestAllyAgentId:
+          type: integer
+        round2StrongestDisagreeAgentId:
+          type: integer
+        compoundChainText:
+          type: string
+        generatedAt:
+          type: string
+      required: [id, sessionId, agentId]
+
+    SessionFinding:
+      type: object
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        findingCode:
+          type: string
+        severity:
+          type: string
+        findingText:
+          type: string
+        agentConsensusCount:
+          type: integer
+        isNew:
+          type: boolean
+        createdAt:
+          type: string
+      required: [id, sessionId, severity, findingText]
+
+    SessionSynthesis:
+      type: object
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        consensusFindings:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        contestedFindings:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        compoundChains:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        blindSpots:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        priorityMitigations:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        sharpestInsights:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        generatedAt:
+          type: string
+      required: [id, sessionId]
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        scenarioId:
+          type: integer
+        domainId:
+          type: integer
+        status:
+          type: string
+          enum: [pending, round1, round2, complete]
+        phaseFocus:
+          type: string
+        agentCount:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, name, status]
+
+    SessionDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        scenarioId:
+          type: integer
+        domainId:
+          type: integer
+        status:
+          type: string
+          enum: [pending, round1, round2, complete]
+        phaseFocus:
+          type: string
+        scenario:
+          $ref: "#/components/schemas/Scenario"
+        domain:
+          $ref: "#/components/schemas/Domain"
+        sessionAgents:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionAgent"
+        findings:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionFinding"
+        synthesis:
+          $ref: "#/components/schemas/SessionSynthesis"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, name, status]
+
+    CreateSessionBody:
+      type: object
+      properties:
+        name:
+          type: string
+        scenarioId:
+          type: integer
+        domainId:
+          type: integer
+        phaseFocus:
+          type: string
+        agentIds:
+          type: array
+          items:
+            type: integer
+      required: [name, agentIds]
+
+    UpdateSessionBody:
+      type: object
+      properties:
+        name:
+          type: string
+        phaseFocus:
+          type: string
+        status:
+          type: string
+          enum: [pending, round1, round2, complete]
+
+    Report:
+      type: object
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        title:
+          type: string
+        sections:
+          type: array
+          items:
+            type: string
+        content:
+          type: string
+        format:
+          type: string
+        createdAt:
+          type: string
+      required: [id, sessionId, title]
+
+    CreateReportBody:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+        title:
+          type: string
+        sections:
+          type: array
+          items:
+            type: string
+        format:
+          type: string
+          enum: [markdown, json]
+      required: [sessionId, title]
+
+    DashboardStats:
+      type: object
+      properties:
+        totalAgents:
+          type: integer
+        totalSessions:
+          type: integer
+        activeSessions:
+          type: integer
+        totalChains:
+          type: integer
+        totalScenarios:
+          type: integer
+        totalDomains:
+          type: integer
+        agentsByDomain:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        recentSessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Session"
+      required: [totalAgents, totalSessions, totalChains, totalScenarios, totalDomains]
