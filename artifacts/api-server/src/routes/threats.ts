@@ -47,7 +47,7 @@ router.post("/", async (req, res) => {
 
 router.post("/generate", async (req, res) => {
   try {
-    const { context, scenarioId } = req.body;
+    const { context, scenarioId, domainId } = req.body;
 
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
@@ -76,17 +76,23 @@ Make threats specific to this scenario. Focus on realistic, non-obvious threats 
       ],
     });
 
-    const text = message.content[0].type === "text" ? message.content[0].text : "[]";
-    const parsed = JSON.parse(text.trim());
+    const raw = message.content[0].type === "text" ? message.content[0].text : "[]";
+    const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+    const parsed = JSON.parse(cleaned);
 
+    // Return the generated threats for the frontend to preview/select before saving
     const result = parsed.map((t: {
       name: string;
       description: string;
       severity: string;
       category: string;
     }) => ({
-      ...t,
+      name: t.name,
+      description: t.description,
+      severity: t.severity,
+      category: t.category,
       scenarioId: scenarioId || null,
+      domainId: domainId || null,
       tags: [],
     }));
 

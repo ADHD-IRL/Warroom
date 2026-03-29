@@ -146,8 +146,9 @@ Make the chain operationally coherent — each step should flow logically from t
       ],
     });
 
-    const text = message.content[0].type === "text" ? message.content[0].text : "{}";
-    const parsed = JSON.parse(text.trim());
+    const raw = message.content[0].type === "text" ? message.content[0].text : "{}";
+    const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+    const parsed = JSON.parse(cleaned);
 
     const [chain] = await db
       .insert(chains)
