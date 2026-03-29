@@ -14,6 +14,7 @@ import Chains from "@/pages/Chains";
 import Sessions from "@/pages/Sessions";
 import SessionWorkspace from "@/pages/SessionWorkspace";
 import Reports from "@/pages/Reports";
+import Guide from "@/pages/Guide";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -38,6 +39,7 @@ function Router() {
         <Route path="/sessions" component={Sessions} />
         <Route path="/sessions/:id" component={SessionWorkspace} />
         <Route path="/reports" component={Reports} />
+        <Route path="/guide" component={Guide} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

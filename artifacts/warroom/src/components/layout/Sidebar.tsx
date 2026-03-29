@@ -10,7 +10,8 @@ import {
   PlayCircle, 
   FileOutput,
   Activity,
-  X
+  X,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGetStats } from "@workspace/api-client-react";
@@ -71,29 +72,57 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-6 px-3 overflow-y-auto space-y-1">
-          {NAV_ITEMS.map((item) => {
-            const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onClose}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group",
-                  isActive
-                    ? "bg-primary/10 text-primary border border-primary/20 shadow-[inset_0_0_12px_rgba(240,165,0,0.05)]"
-                    : "text-muted-foreground hover:text-foreground hover:bg-white/5 border border-transparent"
-                )}
-              >
-                <item.icon size={18} className={cn(
-                  "transition-colors duration-200",
-                  isActive ? "text-primary drop-shadow-[0_0_5px_rgba(240,165,0,0.5)]" : "group-hover:text-foreground"
-                )} />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 py-6 px-3 overflow-y-auto flex flex-col">
+          <div className="space-y-1 flex-1">
+            {NAV_ITEMS.map((item) => {
+              const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onClose}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group",
+                    isActive
+                      ? "bg-primary/10 text-primary border border-primary/20 shadow-[inset_0_0_12px_rgba(240,165,0,0.05)]"
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/5 border border-transparent"
+                  )}
+                >
+                  <item.icon size={18} className={cn(
+                    "transition-colors duration-200",
+                    isActive ? "text-primary drop-shadow-[0_0_5px_rgba(240,165,0,0.5)]" : "group-hover:text-foreground"
+                  )} />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Reference section */}
+          <div className="mt-4 pt-4 border-t border-sidebar-border/50 space-y-1">
+            <p className="text-[9px] font-mono uppercase text-muted-foreground/50 tracking-widest px-3 mb-2">Reference</p>
+            {(() => {
+              const isActive = location === "/guide";
+              return (
+                <Link
+                  href="/guide"
+                  onClick={onClose}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group",
+                    isActive
+                      ? "bg-primary/10 text-primary border border-primary/20 shadow-[inset_0_0_12px_rgba(240,165,0,0.05)]"
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/5 border border-transparent"
+                  )}
+                >
+                  <BookOpen size={18} className={cn(
+                    "transition-colors duration-200",
+                    isActive ? "text-primary drop-shadow-[0_0_5px_rgba(240,165,0,0.5)]" : "group-hover:text-foreground"
+                  )} />
+                  Field Manual
+                </Link>
+              );
+            })()}
+          </div>
         </nav>
 
         {/* System Status Footer */}
