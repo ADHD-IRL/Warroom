@@ -6,6 +6,7 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "seed-warroom": "tsx ./src/seed-warroom.ts",
+    "seed-agent-library": "tsx ./src/seed-agent-library.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
