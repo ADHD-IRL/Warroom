@@ -5,7 +5,7 @@ import { useSSE } from "@/hooks/use-sse";
 import {
   ShieldAlert, Play, RefreshCw, Layers, CheckCircle2,
   Loader2, Clock, Zap, Brain, AlertTriangle,
-  Download, ChevronDown, FileText, RotateCcw
+  Download, ChevronDown, FileText, RotateCcw, BookOpen, Users, Target
 } from "lucide-react";
 import { SeverityBadge } from "@/components/shared/SeverityBadge";
 import ReactMarkdown from "react-markdown";
@@ -538,6 +538,72 @@ export default function SessionWorkspace() {
               </div>
             ) : (
               <div className="space-y-6">
+
+                {/* Scenario Overview */}
+                <div className="bg-card border border-border rounded-xl overflow-hidden shadow-lg">
+                  <div className="px-6 py-4 border-b border-border bg-background/30 flex items-center gap-2">
+                    <BookOpen size={18} className="text-primary" />
+                    <h2 className="text-lg font-display font-bold text-foreground uppercase tracking-wide">Scenario Overview</h2>
+                  </div>
+                  <div className="p-6 space-y-5">
+                    {/* Metadata grid */}
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                      <div>
+                        <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1">
+                          <FileText size={10} /> Scenario
+                        </p>
+                        <p className="font-bold font-display text-foreground">{session.scenario?.name ?? "—"}</p>
+                        {session.scenario?.description && (
+                          <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{session.scenario.description}</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1">
+                          <Target size={10} /> Phase Focus
+                        </p>
+                        <p className="font-bold font-display text-foreground">{session.phaseFocus ?? "General Assessment"}</p>
+                        {session.domain && (
+                          <p className="text-sm text-muted-foreground mt-1">Domain: {session.domain.name}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Agent lineup */}
+                    {session.sessionAgents?.length > 0 && (
+                      <div className="border-t border-border/50 pt-4">
+                        <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1">
+                          <Users size={10} /> Analyst Team ({session.sessionAgents.length})
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {session.sessionAgents.map((sa: any) => (
+                            <div key={sa.id} className="flex items-center gap-2 bg-background/50 border border-border rounded-lg px-3 py-1.5">
+                              <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                              <div>
+                                <p className="text-xs font-bold font-display text-foreground leading-none">{sa.agent?.name}</p>
+                                {sa.agent?.discipline && (
+                                  <p className="text-[10px] text-muted-foreground font-mono leading-none mt-0.5">{sa.agent.discipline}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Context Document */}
+                    {session.scenario?.contextDocument && (
+                      <div className="border-t border-border/50 pt-4">
+                        <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1">
+                          <BookOpen size={10} /> Intelligence Context
+                        </p>
+                        <div className="prose prose-invert prose-p:text-sm prose-p:leading-relaxed prose-headings:font-display prose-headings:text-foreground prose-headings:text-sm prose-strong:text-foreground max-w-none bg-background/30 rounded-lg p-4 border border-border/50">
+                          <ReactMarkdown>{session.scenario.contextDocument}</ReactMarkdown>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Priority Mitigations */}
                 <div className="bg-primary/5 border border-primary/20 rounded-xl p-6">
                   <h2 className="text-xl font-display font-bold text-primary mb-4 flex items-center gap-2">
