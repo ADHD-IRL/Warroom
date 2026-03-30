@@ -296,7 +296,7 @@ function ChainModal({
                   <label className="text-[11px] font-mono uppercase text-muted-foreground tracking-widest">Scenario</label>
                   <select className="military-input appearance-none" value={aiScenarioId} onChange={(e) => setAiScenarioId(e.target.value)}>
                     <option value="">— None —</option>
-                    {scenarios.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
+                    {scenarios.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -361,7 +361,7 @@ function ChainModal({
                   <label className="text-[11px] font-mono uppercase text-muted-foreground tracking-widest">Scenario</label>
                   <select className="military-input appearance-none" value={manualScenarioId} onChange={(e) => setManualScenarioId(e.target.value)}>
                     <option value="">— None —</option>
-                    {scenarios.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
+                    {scenarios.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
               </div>
