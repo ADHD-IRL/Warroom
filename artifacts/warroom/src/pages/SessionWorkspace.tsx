@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useParams } from "wouter";
-import { useGetSession, useGenerateSynthesis } from "@workspace/api-client-react";
+import { useGetSession, useGenerateSynthesis, useResetSession } from "@workspace/api-client-react";
 import { useSSE } from "@/hooks/use-sse";
 import {
   ShieldAlert, Play, RefreshCw, Layers, CheckCircle2,
   Loader2, Clock, Zap, Brain, AlertTriangle,
-  Download, ChevronDown, FileText
+  Download, ChevronDown, FileText, RotateCcw
 } from "lucide-react";
 import { SeverityBadge } from "@/components/shared/SeverityBadge";
 import ReactMarkdown from "react-markdown";
@@ -38,10 +38,14 @@ export default function SessionWorkspace() {
   const { stream, isStreaming } = useSSE();
   const { mutateAsync: generateSynthesis } = useGenerateSynthesis();
 
+  const { mutateAsync: resetSession } = useResetSession();
+
   const [activeTab, setActiveTab] = useState<"ROUND1" | "ROUND2" | "SYNTHESIS">("ROUND1");
   const [streamState, setStreamState] = useState<StreamingState>(EMPTY_STREAM);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [showDownload, setShowDownload] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const downloadRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -116,6 +120,19 @@ export default function SessionWorkspace() {
     }
   };
 
+  const runReset = async () => {
+    setIsResetting(true);
+    setShowResetConfirm(false);
+    try {
+      await resetSession({ id: Number(id) });
+      setStreamState(EMPTY_STREAM);
+      setActiveTab("ROUND1");
+      await refetch();
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   if (isLoading || !session) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -174,6 +191,19 @@ export default function SessionWorkspace() {
             {isSynthesizing
               ? <><Loader2 size={14} className="animate-spin" /> SYNTHESIZING...</>
               : <><RefreshCw size={14} /> SYNTHESIZE</>
+            }
+          </button>
+
+          {/* Reset button */}
+          <button
+            onClick={() => setShowResetConfirm(true)}
+            disabled={isProcessing || isResetting || session.status === "pending"}
+            className="px-3 py-2 bg-secondary border border-border text-muted-foreground hover:text-red-400 hover:border-red-500/40 font-bold rounded font-display flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            title="Reset session back to pending state"
+          >
+            {isResetting
+              ? <Loader2 size={14} className="animate-spin" />
+              : <RotateCcw size={14} />
             }
           </button>
 
@@ -607,6 +637,40 @@ export default function SessionWorkspace() {
           </div>
         )}
       </div>
+
+      {/* ── Reset Confirmation Modal ── */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-card border border-red-500/40 rounded-xl p-8 max-w-md w-full mx-4 shadow-[0_0_40px_rgba(239,68,68,0.15)]">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center shrink-0">
+                <RotateCcw size={18} className="text-red-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-display font-bold text-foreground uppercase">Reset Session</h2>
+                <p className="text-xs font-mono text-muted-foreground">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+              All generated content for <span className="text-foreground font-bold">{session.name}</span> will be permanently erased — Round 1 assessments, Round 2 rebuttals, and the synthesis report. The session will return to <span className="font-mono text-primary">PENDING</span> status with the same scenario and agents.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 py-2.5 bg-secondary border border-border text-foreground font-bold rounded font-display uppercase tracking-wide hover:bg-white/5 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={runReset}
+                className="flex-1 py-2.5 bg-red-500/10 border border-red-500/40 text-red-400 font-bold rounded font-display uppercase tracking-wide hover:bg-red-500/20 transition-colors"
+              >
+                Reset Session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

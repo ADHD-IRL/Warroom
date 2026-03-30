@@ -3789,3 +3789,86 @@ export function useGetStats<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Reset a session back to pending state
+ */
+export const getResetSessionUrl = (id: number) => {
+  return `/api/sessions/${id}/reset`;
+};
+
+export const resetSession = async (
+  id: number,
+  options?: SecondParameter<typeof customFetch>,
+): Promise<SessionDetail> => {
+  return customFetch<SessionDetail>(getResetSessionUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getResetSessionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetSession>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof resetSession>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["resetSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof resetSession>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+    return resetSession(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ResetSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof resetSession>>
+>;
+
+export type ResetSessionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Reset a session back to pending state
+ */
+export const useResetSession = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetSession>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof resetSession>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getResetSessionMutationOptions(options));
+};

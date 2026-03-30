@@ -468,6 +468,40 @@ Return ONLY the JSON.`,
   }
 });
 
+router.post("/:id/reset", async (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    await db
+      .update(sessionAgents)
+      .set({
+        round1Assessment: null,
+        round1Severity: null,
+        round2Rebuttal: null,
+        round2RevisedSeverity: null,
+        round2StrongestAllyAgentId: null,
+        round2StrongestDisagreeAgentId: null,
+        compoundChainText: null,
+        generatedAt: null,
+      })
+      .where(eq(sessionAgents.sessionId, id));
+
+    await db.delete(sessionFindings).where(eq(sessionFindings.sessionId, id));
+    await db.delete(sessionSynthesis).where(eq(sessionSynthesis.sessionId, id));
+
+    await db
+      .update(sessions)
+      .set({ status: "pending", updatedAt: new Date() })
+      .where(eq(sessions.id, id));
+
+    const detail = await getSessionDetail(id);
+    if (!detail) return res.status(404).json({ error: "Not found" });
+    res.json(detail);
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to reset session" });
+  }
+});
+
 router.post("/:id/save-chain", async (req, res) => {
   const sessionId = parseInt(req.params.id);
   try {
