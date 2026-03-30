@@ -152,71 +152,47 @@ export default function SessionWorkspace() {
     <div className="h-full flex flex-col bg-background">
 
       {/* ── Header ── */}
-      <div className="bg-card border-b border-border px-6 py-4 flex items-start justify-between z-10 shadow-lg shrink-0">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-display font-bold text-foreground uppercase">{session.name}</h1>
-            <span className="text-[10px] px-2 py-1 rounded bg-secondary border border-border font-mono uppercase tracking-widest text-primary">
-              {session.status}
-            </span>
+      <div className="bg-card border-b border-border px-6 py-4 z-10 shadow-lg shrink-0">
+        {/* Row 1: title + utility buttons */}
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3 mb-1 flex-wrap">
+              <h1 className="text-2xl font-display font-bold text-foreground uppercase truncate">{session.name}</h1>
+              <span className="text-[10px] px-2 py-1 rounded bg-secondary border border-border font-mono uppercase tracking-widest text-primary shrink-0">
+                {session.status}
+              </span>
+            </div>
+            <p className="text-muted-foreground font-mono text-xs truncate">
+              SCENARIO: {session.scenario?.name ?? "—"} &nbsp;//&nbsp; FOCUS: {session.phaseFocus ?? "—"}
+            </p>
           </div>
-          <p className="text-muted-foreground font-mono text-xs">
-            SCENARIO: {session.scenario?.name ?? "—"} &nbsp;//&nbsp; FOCUS: {session.phaseFocus ?? "—"}
-          </p>
-        </div>
 
-        <div className="flex gap-2 items-center">
-          <button
-            onClick={runRound1}
-            disabled={isProcessing || session.status !== "pending"}
-            className="px-4 py-2 bg-secondary border border-border text-foreground font-bold rounded hover:bg-white/5 font-display flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            title={session.status !== "pending" ? "Round 1 already complete" : "Generate Round 1 assessments"}
-          >
-            <Play size={14} /> GEN ROUND 1
-          </button>
-          <button
-            onClick={runRound2}
-            disabled={isProcessing || session.status !== "round1"}
-            className="px-4 py-2 bg-secondary border border-border text-foreground font-bold rounded hover:bg-white/5 font-display flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            title={session.status !== "round1" ? "Complete Round 1 first" : "Generate Round 2 rebuttals"}
-          >
-            <Layers size={14} /> GEN ROUND 2
-          </button>
-          <button
-            onClick={runSynthesis}
-            disabled={isProcessing || session.status !== "round2"}
-            className="px-4 py-2 bg-primary text-primary-foreground font-bold rounded hover:bg-primary/90 font-display flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-[0_0_10px_rgba(240,165,0,0.2)]"
-            title={session.status !== "round2" ? "Complete Round 2 first" : "Generate final synthesis"}
-          >
-            {isSynthesizing
-              ? <><Loader2 size={14} className="animate-spin" /> SYNTHESIZING...</>
-              : <><RefreshCw size={14} /> SYNTHESIZE</>
-            }
-          </button>
-
-          {/* Reset button */}
-          <button
-            onClick={() => setShowResetConfirm(true)}
-            disabled={isProcessing || isResetting || session.status === "pending"}
-            className="px-3 py-2 bg-secondary border border-border text-muted-foreground hover:text-red-400 hover:border-red-500/40 font-bold rounded font-display flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            title="Reset session back to pending state"
-          >
-            {isResetting
-              ? <Loader2 size={14} className="animate-spin" />
-              : <RotateCcw size={14} />
-            }
-          </button>
-
-          {/* Download dropdown */}
-          <div className="relative" ref={downloadRef}>
+          {/* Utility buttons: Reset + PDF */}
+          <div className="flex gap-2 items-center shrink-0">
+            {/* Reset button */}
             <button
-              onClick={() => setShowDownload(v => !v)}
-              className="px-3 py-2 bg-secondary border border-border text-foreground font-bold rounded hover:bg-white/5 font-display flex items-center gap-1.5 transition-all"
-              title="Download PDF reports"
+              onClick={() => setShowResetConfirm(true)}
+              disabled={isProcessing || isResetting || session.status === "pending"}
+              className="px-3 py-2 bg-secondary border border-border text-muted-foreground hover:text-red-400 hover:border-red-500/40 font-bold rounded font-display flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              title="Reset session back to pending state"
             >
-              <Download size={14} />
-              <ChevronDown size={12} className={`transition-transform ${showDownload ? "rotate-180" : ""}`} />
+              {isResetting
+                ? <><Loader2 size={14} className="animate-spin" /><span className="text-xs font-mono">RESETTING</span></>
+                : <><RotateCcw size={14} /><span className="text-xs font-mono">RESET</span></>
+              }
             </button>
+
+            {/* Download dropdown */}
+            <div className="relative" ref={downloadRef}>
+              <button
+                onClick={() => setShowDownload(v => !v)}
+                className="px-3 py-2 bg-secondary border border-border text-foreground font-bold rounded hover:bg-white/5 font-display flex items-center gap-1.5 transition-all"
+                title="Download PDF reports"
+              >
+                <Download size={14} />
+                <span className="text-xs font-mono">PDF</span>
+                <ChevronDown size={12} className={`transition-transform ${showDownload ? "rotate-180" : ""}`} />
+              </button>
 
             {showDownload && (
               <div className="absolute right-0 top-full mt-1.5 w-56 bg-card border border-border rounded-xl shadow-2xl z-50 overflow-hidden">
@@ -266,7 +242,39 @@ export default function SessionWorkspace() {
                 </div>
               </div>
             )}
+            </div>
           </div>
+        </div>
+
+        {/* Row 2: main action buttons */}
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={runRound1}
+            disabled={isProcessing || session.status !== "pending"}
+            className="px-4 py-2 bg-secondary border border-border text-foreground font-bold rounded hover:bg-white/5 font-display flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            title={session.status !== "pending" ? "Round 1 already complete" : "Generate Round 1 assessments"}
+          >
+            <Play size={14} /> GEN ROUND 1
+          </button>
+          <button
+            onClick={runRound2}
+            disabled={isProcessing || session.status !== "round1"}
+            className="px-4 py-2 bg-secondary border border-border text-foreground font-bold rounded hover:bg-white/5 font-display flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            title={session.status !== "round1" ? "Complete Round 1 first" : "Generate Round 2 rebuttals"}
+          >
+            <Layers size={14} /> GEN ROUND 2
+          </button>
+          <button
+            onClick={runSynthesis}
+            disabled={isProcessing || session.status !== "round2"}
+            className="px-4 py-2 bg-primary text-primary-foreground font-bold rounded hover:bg-primary/90 font-display flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-[0_0_10px_rgba(240,165,0,0.2)]"
+            title={session.status !== "round2" ? "Complete Round 2 first" : "Generate final synthesis"}
+          >
+            {isSynthesizing
+              ? <><Loader2 size={14} className="animate-spin" /> SYNTHESIZING...</>
+              : <><RefreshCw size={14} /> SYNTHESIZE</>
+            }
+          </button>
         </div>
       </div>
 
