@@ -419,8 +419,9 @@ Return ONLY the JSON.`,
       ],
     });
 
-    const text = message.content[0].type === "text" ? message.content[0].text : "{}";
-    const parsed = JSON.parse(text.trim());
+    const rawText = message.content[0].type === "text" ? message.content[0].text : "{}";
+    const text = rawText.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
+    const parsed = JSON.parse(text);
 
     const existing = await db
       .select()
