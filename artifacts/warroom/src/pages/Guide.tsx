@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "wouter";
 import { motion } from "framer-motion";
 import {
   BookOpen,
@@ -23,6 +24,7 @@ import {
 interface Step {
   number: number;
   label: string;
+  href: string;
   icon: React.ElementType;
   color: string;
   tagline: string;
@@ -40,13 +42,13 @@ interface ConceptCard {
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 const SEQUENCE: Step[] = [
-  { number: 1, label: "Define Domains",    icon: Globe2,      color: "#2E75B6", tagline: "Set the arena" },
-  { number: 2, label: "Build Agents",      icon: Users,       color: "#8E44AD", tagline: "Assemble your analysts" },
-  { number: 3, label: "Write Scenarios",   icon: FileText,    color: "#27AE60", tagline: "Frame the situation" },
-  { number: 4, label: "Log Threats",       icon: Target,      color: "#C0392B", tagline: "Map the dangers" },
-  { number: 5, label: "Build Chains",      icon: GitMerge,    color: "#D68910", tagline: "Connect the dots" },
-  { number: 6, label: "Run a Session",     icon: PlayCircle,  color: "#F0A500", tagline: "Debate & pressure-test" },
-  { number: 7, label: "Review Reports",    icon: FileOutput,  color: "#16A085", tagline: "Extract the signal" },
+  { number: 1, label: "Define Domains",    href: "/domains",   icon: Globe2,      color: "#2E75B6", tagline: "Set the arena" },
+  { number: 2, label: "Build Agents",      href: "/agents",    icon: Users,       color: "#8E44AD", tagline: "Assemble your analysts" },
+  { number: 3, label: "Write Scenarios",   href: "/scenarios", icon: FileText,    color: "#27AE60", tagline: "Frame the situation" },
+  { number: 4, label: "Log Threats",       href: "/threats",   icon: Target,      color: "#C0392B", tagline: "Map the dangers" },
+  { number: 5, label: "Build Chains",      href: "/chains",    icon: GitMerge,    color: "#D68910", tagline: "Connect the dots" },
+  { number: 6, label: "Run a Session",     href: "/sessions",  icon: PlayCircle,  color: "#F0A500", tagline: "Debate & pressure-test" },
+  { number: 7, label: "Review Reports",    href: "/reports",   icon: FileOutput,  color: "#16A085", tagline: "Extract the signal" },
 ];
 
 const CONCEPTS: ConceptCard[] = [
@@ -228,21 +230,26 @@ export default function Guide() {
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.07 }}
-                  className="flex flex-col items-center flex-shrink-0 w-32"
+                  className="flex-shrink-0 w-32"
                 >
-                  <div
-                    className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 border-2"
-                    style={{ backgroundColor: `${step.color}15`, borderColor: `${step.color}40` }}
+                  <Link
+                    href={step.href}
+                    className="flex flex-col items-center group cursor-pointer rounded-xl p-2 transition-colors hover:bg-white/5"
                   >
-                    <step.icon size={22} style={{ color: step.color }} />
-                  </div>
-                  <div
-                    className="text-xs font-display font-bold mb-1 uppercase text-center leading-tight"
-                    style={{ color: step.color }}
-                  >
-                    {step.number}. {step.label}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground text-center font-mono">{step.tagline}</p>
+                    <div
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 border-2 transition-all group-hover:scale-110 group-hover:shadow-lg"
+                      style={{ backgroundColor: `${step.color}15`, borderColor: `${step.color}40` }}
+                    >
+                      <step.icon size={22} style={{ color: step.color }} />
+                    </div>
+                    <div
+                      className="text-xs font-display font-bold mb-1 uppercase text-center leading-tight group-hover:underline"
+                      style={{ color: step.color }}
+                    >
+                      {step.number}. {step.label}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground text-center font-mono">{step.tagline}</p>
+                  </Link>
                 </motion.div>
                 {i < SEQUENCE.length - 1 && (
                   <div className="flex-shrink-0 flex items-center justify-center w-8 mt-5">
@@ -261,23 +268,25 @@ export default function Guide() {
                 initial={{ opacity: 0, x: -16 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card"
               >
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border"
-                  style={{ backgroundColor: `${step.color}15`, borderColor: `${step.color}40` }}
+                <Link
+                  href={step.href}
+                  className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:bg-white/5 hover:border-white/20 transition-colors cursor-pointer"
                 >
-                  <step.icon size={18} style={{ color: step.color }} />
-                </div>
-                <div>
-                  <p className="font-display font-bold text-sm uppercase" style={{ color: step.color }}>
-                    {step.number}. {step.label}
-                  </p>
-                  <p className="text-xs text-muted-foreground font-mono">{step.tagline}</p>
-                </div>
-                {i < SEQUENCE.length - 1 && (
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border"
+                    style={{ backgroundColor: `${step.color}15`, borderColor: `${step.color}40` }}
+                  >
+                    <step.icon size={18} style={{ color: step.color }} />
+                  </div>
+                  <div>
+                    <p className="font-display font-bold text-sm uppercase" style={{ color: step.color }}>
+                      {step.number}. {step.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground font-mono">{step.tagline}</p>
+                  </div>
                   <ArrowRight size={14} className="text-muted-foreground/30 ml-auto flex-shrink-0" />
-                )}
+                </Link>
               </motion.div>
             ))}
           </div>
@@ -312,23 +321,25 @@ export default function Guide() {
                 className="rounded-2xl border border-border bg-card overflow-hidden"
               >
                 {/* Card header */}
-                <div
-                  className="px-6 py-4 flex items-center gap-4 border-b border-border/50"
+                <Link
+                  href={concept.path}
+                  className="px-6 py-4 flex items-center gap-4 border-b border-border/50 group hover:opacity-90 transition-opacity cursor-pointer"
                   style={{ backgroundColor: `${concept.color}08` }}
                 >
                   <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border"
+                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border transition-transform group-hover:scale-110"
                     style={{ backgroundColor: `${concept.color}15`, borderColor: `${concept.color}30` }}
                   >
                     <concept.icon size={18} style={{ color: concept.color }} />
                   </div>
-                  <div>
-                    <h3 className="font-display font-bold uppercase tracking-widest" style={{ color: concept.color }}>
+                  <div className="flex-1">
+                    <h3 className="font-display font-bold uppercase tracking-widest group-hover:underline" style={{ color: concept.color }}>
                       {concept.label}
                     </h3>
                     <p className="text-xs text-muted-foreground font-mono">{concept.path}</p>
                   </div>
-                </div>
+                  <ArrowRight size={14} className="text-muted-foreground/30 group-hover:text-muted-foreground transition-colors flex-shrink-0" />
+                </Link>
 
                 {/* Card body */}
                 <div className="p-6 grid md:grid-cols-3 gap-6">
