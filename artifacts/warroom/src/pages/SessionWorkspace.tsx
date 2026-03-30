@@ -1,10 +1,29 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useParams } from "wouter";
 import { useGetSession, useGenerateSynthesis } from "@workspace/api-client-react";
 import { useSSE } from "@/hooks/use-sse";
-import { ShieldAlert, Play, RefreshCw, Layers, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  ShieldAlert, Play, RefreshCw, Layers, CheckCircle2,
+  Loader2, Clock, Zap, Brain, AlertTriangle
+} from "lucide-react";
 import { SeverityBadge } from "@/components/shared/SeverityBadge";
 import ReactMarkdown from "react-markdown";
+
+type StreamingState = {
+  activeAgentId: number | null;
+  activeAgentName: string;
+  content: Record<number, string>;
+  completed: Set<number>;
+  totalAgents: number;
+};
+
+const EMPTY_STREAM: StreamingState = {
+  activeAgentId: null,
+  activeAgentName: "",
+  content: {},
+  completed: new Set(),
+  totalAgents: 0,
+};
 
 export default function SessionWorkspace() {
   const { id } = useParams<{ id: string }>();
@@ -13,180 +32,496 @@ export default function SessionWorkspace() {
   const { mutateAsync: generateSynthesis } = useGenerateSynthesis();
 
   const [activeTab, setActiveTab] = useState<"ROUND1" | "ROUND2" | "SYNTHESIS">("ROUND1");
-  const [expandedCards, setExpandedCards] = useState<Record<number, boolean>>({});
+  const [streamState, setStreamState] = useState<StreamingState>(EMPTY_STREAM);
+  const [isSynthesizing, setIsSynthesizing] = useState(false);
 
-  if (isLoading || !session) {
-    return <div className="h-full flex items-center justify-center font-mono text-primary animate-pulse">CONNECTING TO SESSION...</div>;
-  }
+  const handleData = useCallback((data: any) => {
+    if (data.type === "start") {
+      setStreamState(prev => ({
+        ...prev,
+        activeAgentId: data.agentId,
+        activeAgentName: data.agentName ?? "",
+      }));
+    } else if (data.type === "chunk") {
+      setStreamState(prev => ({
+        ...prev,
+        content: {
+          ...prev.content,
+          [data.agentId]: (prev.content[data.agentId] ?? "") + data.text,
+        },
+      }));
+    } else if (data.type === "done") {
+      setStreamState(prev => ({
+        ...prev,
+        activeAgentId: null,
+        activeAgentName: "",
+        completed: new Set([...prev.completed, data.agentId]),
+      }));
+    }
+  }, []);
 
   const runRound1 = async () => {
+    const total = session?.sessionAgents?.length ?? 0;
+    setStreamState({ ...EMPTY_STREAM, totalAgents: total, completed: new Set() });
+    setActiveTab("ROUND1");
     await stream(`/api/sessions/${id}/generate-round1`, null, {
-      onDone: () => refetch()
+      onData: handleData,
+      onDone: () => {
+        refetch();
+        setStreamState(EMPTY_STREAM);
+      },
     });
   };
 
   const runRound2 = async () => {
+    const total = session?.sessionAgents?.length ?? 0;
+    setStreamState({ ...EMPTY_STREAM, totalAgents: total, completed: new Set() });
+    setActiveTab("ROUND2");
     await stream(`/api/sessions/${id}/generate-round2`, null, {
-      onDone: () => refetch()
+      onData: handleData,
+      onDone: () => {
+        refetch();
+        setStreamState(EMPTY_STREAM);
+      },
     });
   };
 
   const runSynthesis = async () => {
-    await generateSynthesis({ id: Number(id) });
-    refetch();
+    setIsSynthesizing(true);
+    setActiveTab("SYNTHESIS");
+    try {
+      await generateSynthesis({ id: Number(id) });
+      await refetch();
+    } finally {
+      setIsSynthesizing(false);
+    }
   };
 
-  const toggleExpand = (agentId: number) => {
-    setExpandedCards(prev => ({ ...prev, [agentId]: !prev[agentId] }));
-  };
+  if (isLoading || !session) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="flex items-center gap-3 font-mono text-primary">
+          <Loader2 size={18} className="animate-spin" />
+          CONNECTING TO SESSION...
+        </div>
+      </div>
+    );
+  }
+
+  const isProcessing = isStreaming || isSynthesizing;
+  const completedCount = streamState.completed.size;
+  const totalCount = streamState.totalAgents || session.sessionAgents?.length || 0;
 
   return (
     <div className="h-full flex flex-col bg-background">
-      {/* Workspace Header */}
-      <div className="bg-card border-b border-border p-6 flex items-start justify-between z-10 shadow-lg">
+
+      {/* ── Header ── */}
+      <div className="bg-card border-b border-border px-6 py-4 flex items-start justify-between z-10 shadow-lg shrink-0">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-display font-bold text-foreground uppercase">{session.name}</h1>
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-2xl font-display font-bold text-foreground uppercase">{session.name}</h1>
             <span className="text-[10px] px-2 py-1 rounded bg-secondary border border-border font-mono uppercase tracking-widest text-primary">
               {session.status}
             </span>
           </div>
-          <p className="text-muted-foreground font-mono text-sm max-w-2xl truncate">
-            SCENARIO: {session.scenario?.name} // FOCUS: {session.phaseFocus}
+          <p className="text-muted-foreground font-mono text-xs">
+            SCENARIO: {session.scenario?.name ?? "—"} &nbsp;//&nbsp; FOCUS: {session.phaseFocus ?? "—"}
           </p>
         </div>
 
-        <div className="flex gap-2">
-          <button 
-            onClick={runRound1} disabled={isStreaming || session.status !== 'pending'}
-            className="px-4 py-2 bg-secondary border border-border text-foreground font-bold rounded hover:bg-white/5 font-display flex items-center gap-2 disabled:opacity-50"
+        <div className="flex gap-2 items-center">
+          <button
+            onClick={runRound1}
+            disabled={isProcessing || session.status !== "pending"}
+            className="px-4 py-2 bg-secondary border border-border text-foreground font-bold rounded hover:bg-white/5 font-display flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            title={session.status !== "pending" ? "Round 1 already complete" : "Generate Round 1 assessments"}
           >
-            <Play size={16} /> GEN ROUND 1
+            <Play size={14} /> GEN ROUND 1
           </button>
-          <button 
-            onClick={runRound2} disabled={isStreaming || session.status !== 'round1'}
-            className="px-4 py-2 bg-secondary border border-border text-foreground font-bold rounded hover:bg-white/5 font-display flex items-center gap-2 disabled:opacity-50"
+          <button
+            onClick={runRound2}
+            disabled={isProcessing || session.status !== "round1"}
+            className="px-4 py-2 bg-secondary border border-border text-foreground font-bold rounded hover:bg-white/5 font-display flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            title={session.status !== "round1" ? "Complete Round 1 first" : "Generate Round 2 rebuttals"}
           >
-            <Layers size={16} /> GEN ROUND 2
+            <Layers size={14} /> GEN ROUND 2
           </button>
-          <button 
-            onClick={runSynthesis} disabled={isStreaming || session.status !== 'round2'}
-            className="px-4 py-2 bg-primary text-primary-foreground font-bold rounded hover:bg-primary/90 font-display flex items-center gap-2 disabled:opacity-50"
+          <button
+            onClick={runSynthesis}
+            disabled={isProcessing || session.status !== "round2"}
+            className="px-4 py-2 bg-primary text-primary-foreground font-bold rounded hover:bg-primary/90 font-display flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-[0_0_10px_rgba(240,165,0,0.2)]"
+            title={session.status !== "round2" ? "Complete Round 2 first" : "Generate final synthesis"}
           >
-            <RefreshCw size={16} /> SYNTHESIZE
+            {isSynthesizing
+              ? <><Loader2 size={14} className="animate-spin" /> SYNTHESIZING...</>
+              : <><RefreshCw size={14} /> SYNTHESIZE</>
+            }
           </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-border px-6 bg-background/50">
+      {/* ── Processing Banner ── */}
+      {isStreaming && (
+        <div className="bg-primary/10 border-b border-primary/30 px-6 py-3 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-primary" />
+            </span>
+            <span className="font-mono text-sm text-primary font-bold">
+              {streamState.activeAgentId
+                ? <>PROCESSING: <span className="text-foreground">{streamState.activeAgentName}</span></>
+                : "INITIALIZING AGENTS..."}
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="font-mono text-xs text-muted-foreground">
+              {completedCount} / {totalCount} AGENTS COMPLETE
+            </div>
+            <div className="flex gap-1">
+              {session.sessionAgents?.map(sa => {
+                const agentId = sa.agentId ?? sa.id;
+                const isDone = streamState.completed.has(agentId);
+                const isActive = streamState.activeAgentId === agentId;
+                return (
+                  <div
+                    key={agentId}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      isDone ? "bg-green-400" :
+                      isActive ? "bg-primary animate-pulse" :
+                      "bg-border"
+                    }`}
+                    title={sa.agent?.name}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tabs ── */}
+      <div className="flex border-b border-border px-6 bg-background/50 shrink-0">
         {(["ROUND1", "ROUND2", "SYNTHESIS"] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-6 py-4 font-display font-bold uppercase tracking-wider text-sm transition-colors border-b-2 ${activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+            className={`px-6 py-3.5 font-display font-bold uppercase tracking-wider text-sm transition-colors border-b-2 ${
+              activeTab === tab
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
           >
-            {tab.replace('ROUND', 'ROUND ')}
+            {tab === "ROUND1" ? "Round 1" : tab === "ROUND2" ? "Round 2" : "Synthesis"}
           </button>
         ))}
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto p-8 relative">
-        {/* Streaming overlay */}
-        {isStreaming && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-primary/20 border border-primary/50 text-primary px-6 py-2 rounded-full font-mono text-sm flex items-center gap-3 backdrop-blur shadow-[0_0_20px_rgba(240,165,0,0.2)] z-50">
-            <span className="w-2 h-2 bg-primary rounded-full animate-ping" />
-            GENERATING ANALYSIS STREAM...
-          </div>
-        )}
+      {/* ── Main Content ── */}
+      <div className="flex-1 overflow-y-auto p-6">
 
+        {/* ROUND 1 */}
         {activeTab === "ROUND1" && (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {session.sessionAgents?.map(sa => (
-              <div key={sa.id} className="bg-card border border-border rounded-xl overflow-hidden shadow-lg flex flex-col max-h-[600px]">
-                <div className="p-4 border-b border-white/5 bg-background/30 flex justify-between items-center">
-                  <div>
-                    <h3 className="font-bold font-display text-lg text-foreground">{sa.agent?.name}</h3>
-                    <p className="text-xs text-primary font-mono">{sa.agent?.discipline}</p>
-                  </div>
-                  {sa.round1Severity && <SeverityBadge severity={sa.round1Severity} />}
-                </div>
-                
-                <div className="p-5 flex-1 overflow-y-auto prose prose-invert prose-p:text-sm prose-p:leading-relaxed prose-headings:font-display max-w-none">
-                  {sa.round1Assessment ? (
-                    <ReactMarkdown>{sa.round1Assessment}</ReactMarkdown>
-                  ) : (
-                    <div className="text-center text-muted-foreground py-10 font-mono text-sm opacity-50">
-                      AWAITING GENERATION
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+            {session.sessionAgents?.map(sa => {
+              const agentId = sa.agentId ?? sa.id;
+              const liveText = streamState.content[agentId];
+              const savedText = sa.round1Assessment;
+              const displayText = liveText || savedText;
+              const isDone = streamState.completed.has(agentId);
+              const isActive = streamState.activeAgentId === agentId;
+              const isQueued = isStreaming && !isDone && !isActive;
+
+              return (
+                <div
+                  key={sa.id}
+                  className={`bg-card border rounded-xl overflow-hidden shadow-lg flex flex-col transition-all duration-300 ${
+                    isActive
+                      ? "border-primary shadow-[0_0_20px_rgba(240,165,0,0.15)]"
+                      : isDone
+                      ? "border-green-500/30"
+                      : "border-border"
+                  }`}
+                >
+                  {/* Card Header */}
+                  <div className="px-4 py-3 border-b border-white/5 bg-background/30 flex justify-between items-center">
+                    <div>
+                      <h3 className="font-bold font-display text-foreground">{sa.agent?.name}</h3>
+                      <p className="text-xs text-primary font-mono">{sa.agent?.discipline}</p>
                     </div>
-                  )}
+                    <div className="flex items-center gap-2">
+                      {sa.round1Severity && !isActive && <SeverityBadge severity={sa.round1Severity} />}
+                      {isActive && (
+                        <span className="flex items-center gap-1.5 text-[10px] font-mono text-primary bg-primary/10 border border-primary/30 px-2 py-1 rounded">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
+                          STREAMING
+                        </span>
+                      )}
+                      {isDone && (
+                        <span className="flex items-center gap-1 text-[10px] font-mono text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-1 rounded">
+                          <CheckCircle2 size={10} /> DONE
+                        </span>
+                      )}
+                      {isQueued && (
+                        <span className="text-[10px] font-mono text-muted-foreground bg-muted/30 border border-border px-2 py-1 rounded">
+                          QUEUED
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="p-5 flex-1 overflow-y-auto max-h-[500px]">
+                    {displayText ? (
+                      <div className="prose prose-invert prose-p:text-sm prose-p:leading-relaxed prose-headings:font-display prose-headings:text-foreground max-w-none">
+                        <ReactMarkdown>{displayText}</ReactMarkdown>
+                        {isActive && (
+                          <span className="inline-block w-2 h-4 bg-primary/80 animate-pulse ml-0.5 align-middle" />
+                        )}
+                      </div>
+                    ) : isQueued ? (
+                      <div className="space-y-2 py-4">
+                        <div className="h-2.5 bg-muted/30 rounded animate-pulse w-3/4" />
+                        <div className="h-2.5 bg-muted/30 rounded animate-pulse w-full" />
+                        <div className="h-2.5 bg-muted/30 rounded animate-pulse w-5/6" />
+                        <div className="h-2.5 bg-muted/20 rounded animate-pulse w-2/3 mt-4" />
+                        <div className="h-2.5 bg-muted/20 rounded animate-pulse w-full" />
+                      </div>
+                    ) : (
+                      <div className="text-center text-muted-foreground py-10 font-mono text-xs opacity-50 flex flex-col items-center gap-2">
+                        <Clock size={24} className="opacity-40" />
+                        AWAITING GENERATION
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
+        {/* ROUND 2 */}
         {activeTab === "ROUND2" && (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {session.sessionAgents?.map(sa => (
-              <div key={sa.id} className="bg-card border border-border rounded-xl overflow-hidden shadow-lg flex flex-col max-h-[600px]">
-                <div className="p-4 border-b border-white/5 bg-background/30 flex justify-between items-center">
-                  <div>
-                    <h3 className="font-bold font-display text-lg text-foreground">{sa.agent?.name}</h3>
-                    <span className="text-[10px] text-muted-foreground font-mono">CROSS-DISCIPLINE REBUTTAL</span>
-                  </div>
-                  {sa.round2RevisedSeverity && <SeverityBadge severity={sa.round2RevisedSeverity} />}
-                </div>
-                
-                <div className="p-5 flex-1 overflow-y-auto prose prose-invert prose-p:text-sm max-w-none">
-                  {sa.round2Rebuttal ? (
-                    <ReactMarkdown>{sa.round2Rebuttal}</ReactMarkdown>
-                  ) : (
-                    <div className="text-center text-muted-foreground py-10 font-mono text-sm opacity-50">
-                      REQUIRES ROUND 1 COMPLETION
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+            {session.sessionAgents?.map(sa => {
+              const agentId = sa.agentId ?? sa.id;
+              const liveText = streamState.content[agentId];
+              const savedText = sa.round2Rebuttal;
+              const displayText = liveText || savedText;
+              const isDone = streamState.completed.has(agentId);
+              const isActive = streamState.activeAgentId === agentId;
+              const isQueued = isStreaming && !isDone && !isActive;
+
+              return (
+                <div
+                  key={sa.id}
+                  className={`bg-card border rounded-xl overflow-hidden shadow-lg flex flex-col transition-all duration-300 ${
+                    isActive
+                      ? "border-primary shadow-[0_0_20px_rgba(240,165,0,0.15)]"
+                      : isDone
+                      ? "border-green-500/30"
+                      : "border-border"
+                  }`}
+                >
+                  <div className="px-4 py-3 border-b border-white/5 bg-background/30 flex justify-between items-center">
+                    <div>
+                      <h3 className="font-bold font-display text-foreground">{sa.agent?.name}</h3>
+                      <span className="text-[10px] text-muted-foreground font-mono">CROSS-DISCIPLINE REBUTTAL</span>
                     </div>
-                  )}
+                    <div className="flex items-center gap-2">
+                      {sa.round2RevisedSeverity && !isActive && <SeverityBadge severity={sa.round2RevisedSeverity} />}
+                      {isActive && (
+                        <span className="flex items-center gap-1.5 text-[10px] font-mono text-primary bg-primary/10 border border-primary/30 px-2 py-1 rounded">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
+                          STREAMING
+                        </span>
+                      )}
+                      {isDone && (
+                        <span className="flex items-center gap-1 text-[10px] font-mono text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-1 rounded">
+                          <CheckCircle2 size={10} /> DONE
+                        </span>
+                      )}
+                      {isQueued && (
+                        <span className="text-[10px] font-mono text-muted-foreground bg-muted/30 border border-border px-2 py-1 rounded">
+                          QUEUED
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-5 flex-1 overflow-y-auto max-h-[500px]">
+                    {displayText ? (
+                      <div className="prose prose-invert prose-p:text-sm prose-p:leading-relaxed max-w-none">
+                        <ReactMarkdown>{displayText}</ReactMarkdown>
+                        {isActive && (
+                          <span className="inline-block w-2 h-4 bg-primary/80 animate-pulse ml-0.5 align-middle" />
+                        )}
+                      </div>
+                    ) : isQueued ? (
+                      <div className="space-y-2 py-4">
+                        <div className="h-2.5 bg-muted/30 rounded animate-pulse w-3/4" />
+                        <div className="h-2.5 bg-muted/30 rounded animate-pulse w-full" />
+                        <div className="h-2.5 bg-muted/30 rounded animate-pulse w-5/6" />
+                      </div>
+                    ) : (
+                      <div className="text-center text-muted-foreground py-10 font-mono text-xs opacity-50 flex flex-col items-center gap-2">
+                        <Brain size={24} className="opacity-40" />
+                        REQUIRES ROUND 1 COMPLETION
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
+        {/* SYNTHESIS */}
         {activeTab === "SYNTHESIS" && (
           <div className="max-w-4xl mx-auto">
-            {!session.synthesis ? (
-               <div className="text-center text-muted-foreground py-20 font-mono border border-dashed border-border rounded-xl">
-                 SYNTHESIS NOT GENERATED YET
-               </div>
+            {isSynthesizing ? (
+              <div className="flex flex-col items-center justify-center py-24 gap-6">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full border-2 border-primary/20 flex items-center justify-center">
+                    <Loader2 size={28} className="text-primary animate-spin" />
+                  </div>
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full animate-ping" />
+                </div>
+                <div className="text-center">
+                  <p className="font-display font-bold text-lg text-primary uppercase tracking-widest mb-1">
+                    Synthesizing Intelligence
+                  </p>
+                  <p className="text-muted-foreground font-mono text-sm">
+                    Integrating all agent assessments and rebuttals...
+                  </p>
+                </div>
+                <div className="flex gap-1 mt-2">
+                  {[0, 1, 2, 3, 4].map(i => (
+                    <div
+                      key={i}
+                      className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce"
+                      style={{ animationDelay: `${i * 100}ms` }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : !session.synthesis ? (
+              <div className="text-center text-muted-foreground py-24 font-mono border border-dashed border-border rounded-xl flex flex-col items-center gap-3">
+                <Zap size={32} className="opacity-30" />
+                <p className="text-sm">SYNTHESIS NOT GENERATED YET</p>
+                {session.status === "round2" && (
+                  <button
+                    onClick={runSynthesis}
+                    className="mt-4 px-6 py-3 bg-primary text-primary-foreground font-bold rounded font-display uppercase tracking-wider hover:bg-primary/90 transition-colors"
+                  >
+                    Generate Synthesis
+                  </button>
+                )}
+              </div>
             ) : (
-              <div className="space-y-8">
-                <div className="bg-primary/5 border border-primary/20 rounded-xl p-8">
-                  <h2 className="text-2xl font-display font-bold text-primary mb-6 flex items-center gap-3">
-                    <ShieldAlert /> PRIORITY MITIGATIONS
+              <div className="space-y-6">
+                {/* Priority Mitigations */}
+                <div className="bg-primary/5 border border-primary/20 rounded-xl p-6">
+                  <h2 className="text-xl font-display font-bold text-primary mb-4 flex items-center gap-2">
+                    <ShieldAlert size={20} /> PRIORITY MITIGATIONS
                   </h2>
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {session.synthesis.priorityMitigations?.map((m: any, i: number) => (
-                      <div key={i} className="flex gap-4 items-start">
-                        <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0 font-bold text-sm mt-0.5">{i+1}</div>
-                        <p className="text-foreground leading-relaxed">{m.text || JSON.stringify(m)}</p>
+                      <div key={i} className="flex gap-3 items-start">
+                        <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0 font-bold text-xs mt-0.5">
+                          {i + 1}
+                        </div>
+                        <div>
+                          <p className="text-foreground text-sm leading-relaxed">
+                            {m.action || m.text || JSON.stringify(m)}
+                          </p>
+                          {m.urgency && (
+                            <span className="text-[10px] font-mono text-muted-foreground uppercase">{m.urgency}</span>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-card border border-border rounded-xl p-8 shadow-lg">
-                  <h2 className="text-2xl font-display font-bold text-foreground mb-6">COMPOUND CHAINS DETECTED</h2>
-                  <div className="space-y-4">
-                    {session.synthesis.compoundChains?.map((chain: any, i: number) => (
-                      <div key={i} className="p-4 bg-background border border-border rounded-lg">
-                        <h4 className="font-bold text-lg mb-2">{chain.name || `Chain ${i+1}`}</h4>
-                        <p className="text-sm text-muted-foreground mb-4">{chain.description || JSON.stringify(chain)}</p>
-                        <button className="text-xs bg-secondary px-3 py-1 rounded font-mono hover:bg-white/10 text-white">SAVE TO LIBRARY</button>
-                      </div>
-                    ))}
+                {/* Consensus Findings */}
+                {session.synthesis.consensusFindings?.length > 0 && (
+                  <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
+                    <h2 className="text-xl font-display font-bold text-foreground mb-4">CONSENSUS FINDINGS</h2>
+                    <div className="space-y-3">
+                      {session.synthesis.consensusFindings?.map((f: any, i: number) => (
+                        <div key={i} className="flex gap-3 items-start p-3 bg-background rounded-lg border border-border">
+                          <SeverityBadge severity={f.severity || "MEDIUM"} />
+                          <p className="text-sm text-foreground leading-relaxed">{f.finding || JSON.stringify(f)}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Compound Chains */}
+                {session.synthesis.compoundChains?.length > 0 && (
+                  <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
+                    <h2 className="text-xl font-display font-bold text-foreground mb-4">COMPOUND CHAINS DETECTED</h2>
+                    <div className="space-y-4">
+                      {session.synthesis.compoundChains?.map((chain: any, i: number) => (
+                        <div key={i} className="p-4 bg-background border border-border rounded-lg">
+                          <h4 className="font-bold font-display mb-2">{chain.name || `Chain ${i + 1}`}</h4>
+                          <p className="text-sm text-muted-foreground mb-3">{chain.description || JSON.stringify(chain)}</p>
+                          {chain.steps?.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-3">
+                              {chain.steps.map((step: string, si: number) => (
+                                <span key={si} className="text-xs font-mono bg-secondary px-2 py-0.5 rounded text-muted-foreground">
+                                  {si + 1}. {step}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Sharpest Insights */}
+                {session.synthesis.sharpestInsights?.length > 0 && (
+                  <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
+                    <h2 className="text-xl font-display font-bold text-foreground mb-4">SHARPEST INSIGHTS</h2>
+                    <div className="space-y-4">
+                      {session.synthesis.sharpestInsights?.map((insight: any, i: number) => (
+                        <div key={i} className="border-l-2 border-primary/50 pl-4">
+                          <p className="text-sm text-foreground italic mb-1">
+                            &ldquo;{insight.quote || JSON.stringify(insight)}&rdquo;
+                          </p>
+                          <p className="text-xs font-mono text-primary">— {insight.agent}</p>
+                          {insight.significance && (
+                            <p className="text-xs text-muted-foreground mt-1">{insight.significance}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Blind Spots */}
+                {session.synthesis.blindSpots?.length > 0 && (
+                  <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-6">
+                    <h2 className="text-xl font-display font-bold text-amber-400 mb-4 flex items-center gap-2">
+                      <AlertTriangle size={20} /> BLIND SPOTS
+                    </h2>
+                    <div className="space-y-3">
+                      {session.synthesis.blindSpots?.map((bs: any, i: number) => (
+                        <div key={i} className="flex gap-3 items-start">
+                          <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-2 shrink-0" />
+                          <div>
+                            <p className="text-sm font-bold text-amber-300">{bs.area || ""}</p>
+                            <p className="text-sm text-muted-foreground">{bs.description || JSON.stringify(bs)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

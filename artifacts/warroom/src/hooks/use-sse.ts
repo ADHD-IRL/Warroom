@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 
 interface SSEOptions {
-  onData: (data: any) => void;
+  onData?: (data: any) => void;
   onDone?: () => void;
   onError?: (error: Error) => void;
 }
@@ -57,7 +57,7 @@ export function useSSE() {
                 options?.onDone?.();
                 return;
               }
-              options?.onData(data);
+              options?.onData?.(data);
             } catch (e) {
               console.error("Failed to parse SSE data:", dataStr);
             }
