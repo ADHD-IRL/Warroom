@@ -85,8 +85,8 @@ const CONCEPTS: ConceptCard[] = [
     label: "Threats",
     path: "/threats",
     analogy: "Threats are the flags pinned to the map — each one marks a specific danger that could materialize from this situation. Like a chess player listing every piece that could threaten the king.",
-    what: "Threats are discrete adversary tactics, vulnerabilities, or risks tied to a Scenario or Domain. They have severity ratings (CRITICAL → LOW) and categories. AI generation surfaces threats analysts routinely miss.",
-    tip: "Don't just list the obvious threats. Use AI generation with a specific scenario context to surface the non-obvious, second-order dangers — the ones that live at the intersection of disciplines.",
+    what: "Threats are discrete adversary tactics, vulnerabilities, or risks tied to a Scenario or Domain. They have severity ratings (CRITICAL → LOW) and categories. When you run a session, any threats in the registry matching that session's Domain or Scenario are automatically surfaced to every agent as Prior Intelligence — grounding their analysis in known history rather than starting from scratch.",
+    tip: "Build your threat registry before running sessions. Even a handful of logged threats will sharpen agent outputs significantly — they'll reference, challenge, and build on the prior intelligence rather than re-discovering the same surface-level risks.",
   },
   {
     icon: GitMerge,
@@ -94,8 +94,8 @@ const CONCEPTS: ConceptCard[] = [
     label: "Chains",
     path: "/chains",
     analogy: "A Chain is like a storyboard for how a threat unfolds — frame by frame, step by step, each handled by a different specialist. Like a heist movie where each scene is owned by a different character.",
-    what: "Chains are multi-step compound threat sequences. Each step is attributed to a discipline or agent, and describes what happens in that stage. Together, they map how a complex operation cascades across domains — something no single expert would see alone.",
-    tip: "AI-generated chains are most powerful when you ground them with specific agents. The step labels then reflect real expertise, not generic placeholders.",
+    what: "Chains are multi-step compound threat sequences. Each step is attributed to a discipline or agent, and describes what happens in that stage. Together they map how a complex operation cascades across domains. Chains flow both directions: you can build them manually or with AI, and any compound chain discovered during a session synthesis can be saved back to the library with one click from the Synthesis tab.",
+    tip: "After running a session, check the Synthesis tab for compound chains your agents discovered in debate. Use 'Save to Library' to persist the best ones — they become institutional memory for future sessions and manual analysis.",
   },
   {
     icon: PlayCircle,
@@ -103,8 +103,8 @@ const CONCEPTS: ConceptCard[] = [
     label: "Sessions",
     path: "/sessions",
     analogy: "A Session is the actual war game. You gather your agents, hand them the scenario, and let them argue. Round 1 is independent analysis — everyone speaks without hearing others. Round 2 is cross-examination — each agent challenges the others.",
-    what: "Sessions are structured two-round AI debates. Round 1 generates each selected agent's independent assessment of the scenario. Round 2 generates cross-disciplinary challenges and blind spots. A final synthesis then extracts the key findings.",
-    tip: "Select agents with deliberately opposing viewpoints — a pure technical thinker paired with a behavioral psychologist. The friction between them is where the insight lives.",
+    what: "Sessions are structured two-round AI debates. Before agents write a single word, the system automatically pulls any known threats from the registry that match the session's Domain or Scenario and provides them as Prior Intelligence. Round 1 generates each agent's independent assessment; Round 2 generates cross-disciplinary challenges. A final synthesis extracts consensus findings, compound chains, and priority mitigations.",
+    tip: "Select agents with deliberately opposing viewpoints — a pure technical thinker paired with a behavioral psychologist. The friction between them is where the insight lives. After synthesis, save the strongest compound chains to the library before closing the session.",
   },
   {
     icon: FileOutput,
@@ -130,6 +130,14 @@ const FAQS = [
   {
     q: "What's the difference between a Threat and a Chain?",
     a: "A Threat is a single danger — a vulnerability, a tactic, a risk. A Chain is how multiple threats connect and cascade over time. Think of Threats as individual chess pieces and a Chain as the sequence of moves that leads to checkmate.",
+  },
+  {
+    q: "How do Threats in the registry affect my sessions?",
+    a: "Automatically. When a session runs Round 1 or Round 2, the system queries your threat registry for any threats tied to the same Domain or Scenario as the session. Those threats are injected into each agent's prompt as 'Prior Intelligence' — a briefing block they receive before writing their assessment. This means agents build on accumulated institutional knowledge rather than starting cold every time. If no matching threats exist, the block is simply omitted and agents proceed normally.",
+  },
+  {
+    q: "How do I get compound chains from a session into the Chains library?",
+    a: "After running a synthesis, open the Synthesis tab and scroll to the 'Compound Chains Detected' section. Each chain card has a 'Save to Library' button. Clicking it writes that chain (including its steps) to the Chains registry, tagged as session-derived. The button changes to 'Saved' so you know it's been persisted. From there it appears on the Chains page and is available for reference in future work.",
   },
   {
     q: "Should I use AI Generate or manual for agents?",
@@ -402,8 +410,8 @@ export default function Guide() {
                   { name: "Domains",   analogy: "Headquarters rooms",       required: "No — organizes everything",       ai: "—" },
                   { name: "Agents",    analogy: "Expert analysts at the table", required: "Yes — minimum 1",             ai: "✓ Full profile generation" },
                   { name: "Scenarios", analogy: "Mission briefing",         required: "Yes — minimum 1",                 ai: "✓ AI-assisted drafting" },
-                  { name: "Threats",   analogy: "Flags on the map",         required: "No — enriches context",           ai: "✓ Batch generation from context" },
-                  { name: "Chains",    analogy: "Storyboard of the attack",  required: "No — adds sequence analysis",    ai: "✓ Full multi-step generation" },
+                  { name: "Threats",   analogy: "Flags on the map",         required: "No — auto-feeds sessions",        ai: "✓ Batch generation from context" },
+                  { name: "Chains",    analogy: "Storyboard of the attack",  required: "No — exports from sessions",     ai: "✓ Full multi-step generation" },
                   { name: "Sessions",  analogy: "The war game itself",       required: "N/A — this is the output",       ai: "✓ Round 1 + Round 2 + Synthesis" },
                   { name: "Reports",   analogy: "After-action brief",        required: "N/A — generated from sessions",  ai: "✓ Automatic from session" },
                 ].map((row) => (
