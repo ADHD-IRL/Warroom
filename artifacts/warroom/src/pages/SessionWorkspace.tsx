@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useParams } from "wouter";
-import { useGetSession, useGenerateSynthesis, useResetSession } from "@workspace/api-client-react";
+import { useGetSession, useGenerateSynthesis, useResetSession, useGenerateReport } from "@workspace/api-client-react";
 import { useSSE } from "@/hooks/use-sse";
 import {
   ShieldAlert, Play, RefreshCw, Layers, CheckCircle2,
@@ -37,8 +37,13 @@ export default function SessionWorkspace() {
   const { data: session, isLoading, refetch } = useGetSession(Number(id));
   const { stream, isStreaming } = useSSE();
   const { mutateAsync: generateSynthesis } = useGenerateSynthesis();
-
+  const { mutateAsync: saveReport } = useGenerateReport();
   const { mutateAsync: resetSession } = useResetSession();
+
+  function saveReportRecord(title: string, sections: string[]) {
+    if (!session?.id) return;
+    saveReport({ data: { sessionId: session.id, title, sections, format: "markdown" } }).catch(() => {});
+  }
 
   const [activeTab, setActiveTab] = useState<"ROUND1" | "ROUND2" | "SYNTHESIS">("ROUND1");
   const [streamState, setStreamState] = useState<StreamingState>(EMPTY_STREAM);
@@ -204,25 +209,41 @@ export default function SessionWorkspace() {
                     {
                       label: "Round 1 Report",
                       sub: "All agent assessments",
-                      fn: () => { downloadRound1PDF(session); setShowDownload(false); },
+                      fn: () => {
+                        downloadRound1PDF(session);
+                        saveReportRecord(`${session.name} — Round 1`, ["cover", "agent-roster", "round1-assessments"]);
+                        setShowDownload(false);
+                      },
                       disabled: !session.sessionAgents?.some((sa: any) => sa.round1Assessment),
                     },
                     {
                       label: "Round 2 Report",
                       sub: "All agent rebuttals",
-                      fn: () => { downloadRound2PDF(session); setShowDownload(false); },
+                      fn: () => {
+                        downloadRound2PDF(session);
+                        saveReportRecord(`${session.name} — Round 2`, ["cover", "agent-roster", "round2-rebuttals"]);
+                        setShowDownload(false);
+                      },
                       disabled: !session.sessionAgents?.some((sa: any) => sa.round2Rebuttal),
                     },
                     {
                       label: "Synthesis Report",
                       sub: "Strategic summary",
-                      fn: () => { downloadSynthesisPDF(session); setShowDownload(false); },
+                      fn: () => {
+                        downloadSynthesisPDF(session);
+                        saveReportRecord(`${session.name} — Synthesis`, ["cover", "consensus-findings", "compound-chains", "priority-actions", "synthesis"]);
+                        setShowDownload(false);
+                      },
                       disabled: !session.synthesis,
                     },
                     {
                       label: "Full Report",
                       sub: "All rounds + synthesis",
-                      fn: () => { downloadFullReportPDF(session); setShowDownload(false); },
+                      fn: () => {
+                        downloadFullReportPDF(session);
+                        saveReportRecord(`${session.name} — Full Report`, ["cover", "situation-brief", "agent-roster", "round1-assessments", "round2-rebuttals", "consensus-findings", "compound-chains", "priority-actions", "synthesis"]);
+                        setShowDownload(false);
+                      },
                       disabled: !session.sessionAgents?.some((sa: any) => sa.round1Assessment),
                     },
                   ].map(item => (
