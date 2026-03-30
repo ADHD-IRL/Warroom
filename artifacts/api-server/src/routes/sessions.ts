@@ -165,16 +165,19 @@ async function generateRound1ForAgent(
     contextDoc = scenario?.contextDocument || "";
   }
 
-  const priorThreats = await db
-    .select()
-    .from(threats)
-    .where(
-      or(
-        session.domainId ? eq(threats.domainId, session.domainId) : undefined,
-        session.scenarioId ? eq(threats.scenarioId, session.scenarioId) : undefined
+  let priorThreats: typeof threats.$inferSelect[] = [];
+  if (session.domainId || session.scenarioId) {
+    priorThreats = await db
+      .select()
+      .from(threats)
+      .where(
+        or(
+          session.domainId ? eq(threats.domainId, session.domainId) : undefined,
+          session.scenarioId ? eq(threats.scenarioId, session.scenarioId) : undefined
+        )
       )
-    )
-    .limit(10);
+      .limit(10);
+  }
 
   const priorIntelBlock = priorThreats.length > 0
     ? `\nPRIOR INTELLIGENCE — Known threats from the registry relevant to this domain/scenario:\n${priorThreats
@@ -298,16 +301,19 @@ async function generateRound2ForAgent(
       })
   );
 
-  const priorThreats = await db
-    .select()
-    .from(threats)
-    .where(
-      or(
-        session.domainId ? eq(threats.domainId, session.domainId) : undefined,
-        session.scenarioId ? eq(threats.scenarioId, session.scenarioId) : undefined
+  let priorThreats: typeof threats.$inferSelect[] = [];
+  if (session.domainId || session.scenarioId) {
+    priorThreats = await db
+      .select()
+      .from(threats)
+      .where(
+        or(
+          session.domainId ? eq(threats.domainId, session.domainId) : undefined,
+          session.scenarioId ? eq(threats.scenarioId, session.scenarioId) : undefined
+        )
       )
-    )
-    .limit(10);
+      .limit(10);
+  }
 
   const priorIntelBlock = priorThreats.length > 0
     ? `\nPRIOR INTELLIGENCE — Known threats from the registry relevant to this domain/scenario:\n${priorThreats
