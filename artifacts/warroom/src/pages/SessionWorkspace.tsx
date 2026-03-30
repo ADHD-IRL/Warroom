@@ -1,13 +1,20 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useParams } from "wouter";
 import { useGetSession, useGenerateSynthesis } from "@workspace/api-client-react";
 import { useSSE } from "@/hooks/use-sse";
 import {
   ShieldAlert, Play, RefreshCw, Layers, CheckCircle2,
-  Loader2, Clock, Zap, Brain, AlertTriangle
+  Loader2, Clock, Zap, Brain, AlertTriangle,
+  Download, ChevronDown, FileText
 } from "lucide-react";
 import { SeverityBadge } from "@/components/shared/SeverityBadge";
 import ReactMarkdown from "react-markdown";
+import {
+  downloadRound1PDF,
+  downloadRound2PDF,
+  downloadSynthesisPDF,
+  downloadFullReportPDF,
+} from "@/lib/pdf";
 
 type StreamingState = {
   activeAgentId: number | null;
@@ -34,6 +41,18 @@ export default function SessionWorkspace() {
   const [activeTab, setActiveTab] = useState<"ROUND1" | "ROUND2" | "SYNTHESIS">("ROUND1");
   const [streamState, setStreamState] = useState<StreamingState>(EMPTY_STREAM);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
+  const [showDownload, setShowDownload] = useState(false);
+  const downloadRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (downloadRef.current && !downloadRef.current.contains(e.target as Node)) {
+        setShowDownload(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleData = useCallback((data: any) => {
     if (data.type === "start") {
@@ -157,6 +176,67 @@ export default function SessionWorkspace() {
               : <><RefreshCw size={14} /> SYNTHESIZE</>
             }
           </button>
+
+          {/* Download dropdown */}
+          <div className="relative" ref={downloadRef}>
+            <button
+              onClick={() => setShowDownload(v => !v)}
+              className="px-3 py-2 bg-secondary border border-border text-foreground font-bold rounded hover:bg-white/5 font-display flex items-center gap-1.5 transition-all"
+              title="Download PDF reports"
+            >
+              <Download size={14} />
+              <ChevronDown size={12} className={`transition-transform ${showDownload ? "rotate-180" : ""}`} />
+            </button>
+
+            {showDownload && (
+              <div className="absolute right-0 top-full mt-1.5 w-56 bg-card border border-border rounded-xl shadow-2xl z-50 overflow-hidden">
+                <div className="px-3 py-2 border-b border-border">
+                  <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Download PDF</p>
+                </div>
+                <div className="p-1.5 space-y-0.5">
+                  {[
+                    {
+                      label: "Round 1 Report",
+                      sub: "All agent assessments",
+                      fn: () => { downloadRound1PDF(session); setShowDownload(false); },
+                      disabled: !session.sessionAgents?.some((sa: any) => sa.round1Assessment),
+                    },
+                    {
+                      label: "Round 2 Report",
+                      sub: "All agent rebuttals",
+                      fn: () => { downloadRound2PDF(session); setShowDownload(false); },
+                      disabled: !session.sessionAgents?.some((sa: any) => sa.round2Rebuttal),
+                    },
+                    {
+                      label: "Synthesis Report",
+                      sub: "Strategic summary",
+                      fn: () => { downloadSynthesisPDF(session); setShowDownload(false); },
+                      disabled: !session.synthesis,
+                    },
+                    {
+                      label: "Full Report",
+                      sub: "All rounds + synthesis",
+                      fn: () => { downloadFullReportPDF(session); setShowDownload(false); },
+                      disabled: !session.sessionAgents?.some((sa: any) => sa.round1Assessment),
+                    },
+                  ].map(item => (
+                    <button
+                      key={item.label}
+                      onClick={item.disabled ? undefined : item.fn}
+                      disabled={item.disabled}
+                      className="w-full flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors disabled:opacity-35 disabled:cursor-not-allowed text-left group"
+                    >
+                      <FileText size={14} className="text-muted-foreground group-hover:text-primary transition-colors mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-bold font-display text-foreground leading-none mb-0.5">{item.label}</p>
+                        <p className="text-[11px] text-muted-foreground font-mono">{item.sub}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
