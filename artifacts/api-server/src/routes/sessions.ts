@@ -10,8 +10,9 @@ import {
   domains,
   chains,
   chainSteps,
+  threats,
 } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 
 const router: IRouter = Router();
@@ -164,6 +165,23 @@ async function generateRound1ForAgent(
     contextDoc = scenario?.contextDocument || "";
   }
 
+  const priorThreats = await db
+    .select()
+    .from(threats)
+    .where(
+      or(
+        session.domainId ? eq(threats.domainId, session.domainId) : undefined,
+        session.scenarioId ? eq(threats.scenarioId, session.scenarioId) : undefined
+      )
+    )
+    .limit(10);
+
+  const priorIntelBlock = priorThreats.length > 0
+    ? `\nPRIOR INTELLIGENCE — Known threats from the registry relevant to this domain/scenario:\n${priorThreats
+        .map((t) => `- [${t.severity}] ${t.name}${t.description ? `: ${t.description}` : ""}`)
+        .join("\n")}\n`
+    : "";
+
   const [sa] = await db
     .select()
     .from(sessionAgents)
@@ -180,7 +198,7 @@ async function generateRound1ForAgent(
         content: `You are ${agent.name}, ${agent.personaDescription}
 Your cognitive bias: ${agent.cognitiveBias}
 Your red-team focus: ${agent.redTeamFocus}
-
+${priorIntelBlock}
 SCENARIO CONTEXT:
 ${contextDoc || "No context provided."}
 
@@ -280,6 +298,23 @@ async function generateRound2ForAgent(
       })
   );
 
+  const priorThreats = await db
+    .select()
+    .from(threats)
+    .where(
+      or(
+        session.domainId ? eq(threats.domainId, session.domainId) : undefined,
+        session.scenarioId ? eq(threats.scenarioId, session.scenarioId) : undefined
+      )
+    )
+    .limit(10);
+
+  const priorIntelBlock = priorThreats.length > 0
+    ? `\nPRIOR INTELLIGENCE — Known threats from the registry relevant to this domain/scenario:\n${priorThreats
+        .map((t) => `- [${t.severity}] ${t.name}${t.description ? `: ${t.description}` : ""}`)
+        .join("\n")}\n`
+    : "";
+
   sendEvent({ type: "start", agentId, agentName: agent.name });
 
   const stream = anthropic.messages.stream({
@@ -290,7 +325,7 @@ async function generateRound2ForAgent(
         role: "user",
         content: `You are ${agent.name}, ${agent.personaDescription}
 Your cognitive bias: ${agent.cognitiveBias}
-
+${priorIntelBlock}
 You have just read all Round 1 assessments from the other experts. Here they are:
 
 ${otherAssessments.join("\n\n---\n\n")}

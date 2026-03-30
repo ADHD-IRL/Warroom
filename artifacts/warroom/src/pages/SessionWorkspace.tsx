@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useParams } from "wouter";
-import { useGetSession, useGenerateSynthesis, useResetSession, useGenerateReport } from "@workspace/api-client-react";
+import { useGetSession, useGenerateSynthesis, useResetSession, useGenerateReport, useSaveChainFromSynthesis } from "@workspace/api-client-react";
 import { useSSE } from "@/hooks/use-sse";
 import {
   ShieldAlert, Play, RefreshCw, Layers, CheckCircle2,
   Loader2, Clock, Zap, Brain, AlertTriangle,
-  Download, ChevronDown, FileText, RotateCcw, BookOpen, Users, Target
+  Download, ChevronDown, FileText, RotateCcw, BookOpen, Users, Target, Link2
 } from "lucide-react";
 import { SeverityBadge } from "@/components/shared/SeverityBadge";
 import ReactMarkdown from "react-markdown";
@@ -39,10 +39,33 @@ export default function SessionWorkspace() {
   const { mutateAsync: generateSynthesis } = useGenerateSynthesis();
   const { mutateAsync: saveReport } = useGenerateReport();
   const { mutateAsync: resetSession } = useResetSession();
+  const { mutateAsync: saveChain } = useSaveChainFromSynthesis();
+  const [savedChains, setSavedChains] = useState<Set<number>>(new Set());
+  const [savingChain, setSavingChain] = useState<number | null>(null);
 
   function saveReportRecord(title: string, sections: string[]) {
     if (!session?.id) return;
     saveReport({ data: { sessionId: session.id, title, sections, format: "markdown" } }).catch(() => {});
+  }
+
+  async function handleSaveChain(chain: any, index: number) {
+    if (!session?.id || savedChains.has(index) || savingChain === index) return;
+    setSavingChain(index);
+    try {
+      const chainText = [chain.description, ...(chain.steps ?? [])].filter(Boolean).join(". ");
+      await saveChain({
+        id: session.id,
+        data: {
+          chainName: chain.name || `Chain ${index + 1}`,
+          chainText,
+          agentIds: chain.agents ?? [],
+        },
+      });
+      setSavedChains((prev) => new Set(prev).add(index));
+    } catch {
+    } finally {
+      setSavingChain(null);
+    }
   }
 
   const [activeTab, setActiveTab] = useState<"ROUND1" | "ROUND2" | "SYNTHESIS">("ROUND1");
@@ -669,21 +692,45 @@ export default function SessionWorkspace() {
                   <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
                     <h2 className="text-xl font-display font-bold text-foreground mb-4">COMPOUND CHAINS DETECTED</h2>
                     <div className="space-y-4">
-                      {session.synthesis.compoundChains?.map((chain: any, i: number) => (
-                        <div key={i} className="p-4 bg-background border border-border rounded-lg">
-                          <h4 className="font-bold font-display mb-2">{chain.name || `Chain ${i + 1}`}</h4>
-                          <p className="text-sm text-muted-foreground mb-3">{chain.description || JSON.stringify(chain)}</p>
-                          {chain.steps?.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mb-3">
-                              {chain.steps.map((step: string, si: number) => (
-                                <span key={si} className="text-xs font-mono bg-secondary px-2 py-0.5 rounded text-muted-foreground">
-                                  {si + 1}. {step}
-                                </span>
-                              ))}
+                      {session.synthesis.compoundChains?.map((chain: any, i: number) => {
+                        const isSaved = savedChains.has(i);
+                        const isSaving = savingChain === i;
+                        return (
+                          <div key={i} className={`p-4 bg-background border rounded-lg transition-colors ${isSaved ? "border-green-500/30" : "border-border"}`}>
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <h4 className="font-bold font-display">{chain.name || `Chain ${i + 1}`}</h4>
+                              <button
+                                onClick={() => handleSaveChain(chain, i)}
+                                disabled={isSaved || isSaving}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-mono font-bold uppercase transition-all shrink-0 ${
+                                  isSaved
+                                    ? "bg-green-500/10 text-green-400 border border-green-500/30 cursor-default"
+                                    : "bg-background border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-50"
+                                }`}
+                              >
+                                {isSaving ? (
+                                  <Loader2 size={11} className="animate-spin" />
+                                ) : isSaved ? (
+                                  <CheckCircle2 size={11} />
+                                ) : (
+                                  <Link2 size={11} />
+                                )}
+                                {isSaved ? "Saved" : isSaving ? "Saving…" : "Save to Library"}
+                              </button>
                             </div>
-                          )}
-                        </div>
-                      ))}
+                            <p className="text-sm text-muted-foreground mb-3">{chain.description || JSON.stringify(chain)}</p>
+                            {chain.steps?.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {chain.steps.map((step: string, si: number) => (
+                                  <span key={si} className="text-xs font-mono bg-secondary px-2 py-0.5 rounded text-muted-foreground">
+                                    {si + 1}. {step}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
