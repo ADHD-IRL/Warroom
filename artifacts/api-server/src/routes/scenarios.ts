@@ -90,6 +90,45 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+router.post("/generate-context", async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    if (!name) return res.status(400).json({ error: "name is required" });
+
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 2048,
+      messages: [
+        {
+          role: "user",
+          content: `You are drafting a strategic scenario context document for the WARROOM red-team analysis platform.
+
+Scenario title: ${name}
+${description ? `Brief description: ${description}` : ""}
+
+Write a detailed, professional intelligence-briefing-style context document for this scenario. Structure it with these sections:
+
+## Situation Overview
+## Key Actors & Stakeholders
+## Timeline & Current Status
+## Critical Decision Points
+## Known Vulnerabilities & Risk Factors
+## Operational Context
+
+Be specific, analytical, and useful for red-team analysis. Write in the present tense. Return ONLY the context document — no preamble, no commentary.`,
+        },
+      ],
+    });
+
+    const raw = message.content[0].type === "text" ? message.content[0].text : "";
+    const contextDocument = raw.trim().replace(/^```(?:markdown|text)?\s*/i, "").replace(/\s*```$/, "");
+    res.json({ contextDocument });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to generate context" });
+  }
+});
+
 router.post("/:id/ai-assist", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
