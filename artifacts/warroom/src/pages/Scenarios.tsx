@@ -493,14 +493,18 @@ export default function Scenarios() {
             </div>
             <h2 className="text-xl font-display font-bold uppercase mb-2">Mission Briefings</h2>
             <p className="text-sm text-muted-foreground max-w-sm mb-6 leading-relaxed">
-              Select a scenario from the list to view its context document, or create a new one to begin analysis.
+              {scenarios.length === 0
+                ? "No scenarios yet. Create one to begin analysis."
+                : "Select a scenario from the list to view its context document."}
             </p>
-            <button
-              onClick={openCreate}
-              className="px-6 py-3 bg-primary text-primary-foreground font-bold rounded-lg uppercase tracking-wider font-display hover:bg-primary/90 transition-colors"
-            >
-              Create First Scenario
-            </button>
+            {scenarios.length === 0 && (
+              <button
+                onClick={openCreate}
+                className="px-6 py-3 bg-primary text-primary-foreground font-bold rounded-lg uppercase tracking-wider font-display hover:bg-primary/90 transition-colors"
+              >
+                Create First Scenario
+              </button>
+            )}
           </div>
         ) : (
           <div className="flex-1 flex flex-col overflow-hidden">
