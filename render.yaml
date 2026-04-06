@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: warroom
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @workspace/warroom run build && pnpm --filter @workspace/api-server run build"
+    startCommand: "pnpm --filter @workspace/api-server run start"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: BASE_PATH
+        value: /
